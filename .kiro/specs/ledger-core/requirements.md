@@ -39,6 +39,7 @@ Out of scope: currency conversion (FX), user interface, user/role management, mu
 4. WHEN the `type` is not one of ASSET, LIABILITY, EQUITY, INCOME, EXPENSE, or the normal balance is not DEBIT or CREDIT THEN the system SHALL reject the request with a validation error.
 5. WHEN a client requests an account by id THEN the system SHALL return its attributes and current balance, or a not-found error if it does not exist.
 6. The system SHALL NOT allow an account's currency, type, or normal balance to change after creation.
+7. WHEN the account `code` is not 1 to 64 characters of letters, digits, `.`, `_`, `:` or `-`, starting with a letter or digit, THEN the system SHALL reject the request with a validation error (restricting the alphabet prevents look-alike Unicode codes).
 
 ### Requirement 2: Balanced transactions
 

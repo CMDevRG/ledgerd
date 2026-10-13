@@ -71,7 +71,7 @@ Sign convention: a posting stores a **positive** amount and a **direction** (`DE
 ```sql
 CREATE TABLE accounts (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  code             text        NOT NULL UNIQUE CHECK (length(code) BETWEEN 1 AND 64),
+  code             text        NOT NULL UNIQUE CHECK (code ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$'),
   currency         text        NOT NULL CHECK (currency ~ '^[A-Z0-9]{2,10}$'),   -- asset code: USD, ETH, USDT...
   type             text        NOT NULL CHECK (type IN ('ASSET','LIABILITY','EQUITY','INCOME','EXPENSE')),
   normal_balance   text        NOT NULL CHECK (normal_balance IN ('DEBIT','CREDIT')),

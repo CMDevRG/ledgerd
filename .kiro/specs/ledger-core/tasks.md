@@ -25,12 +25,12 @@ Conventions:
 
 ## Phase 2 — Domain (pure Go, no database)
 
-- [ ] 3. Money type and strict amount parsing
+- [x] 3. Money type and strict amount parsing
   - `internal/ledger`: `Amount` wrapper over `*big.Int` with `ParseAmount(string)` using the strict pattern (no sign, no leading zeros, no decimals or exponent, 1 ≤ value ≤ 10³⁰) and `String()`.
   - Verify: unit tests for valid, boundary (10³⁰ and 10³⁰+1), and invalid inputs; property test that `Parse(String(x)) == x`.
   - _Requirements: R2.4_
 
-- [ ] 4. Domain types and validation
+- [x] 4. Domain types and validation
   - Types: `Account`, `Direction`, `NormalBalance`, `AccountType`, `Posting`, `Transaction`; asset-code validation (`^[A-Z0-9]{2,10}$`); account-creation validation.
   - Transaction validation: 2–100 postings, per-currency debit = credit, description length, no mixed-currency mistakes.
   - Verify: table-driven unit tests covering every validation rule.
