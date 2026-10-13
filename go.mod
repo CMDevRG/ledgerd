@@ -1,3 +1,5 @@
 module github.com/radadev/ledgerd
 
 go 1.27.2
+
+require pgregory.net/rapid v1.3.0
