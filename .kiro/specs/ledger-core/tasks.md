@@ -110,7 +110,7 @@ Conventions:
 
 ## Phase 6 — HTTP API
 
-- [ ] 18. HTTP foundation
+- [x] 18. HTTP foundation
   - Router on `net/http` `ServeMux`; middleware: panic recovery, request id, structured JSON logging (no bodies, no secrets), body-size limit, API-key authentication with constant-time comparison; RFC 9457 problem+json writer with the error-code table from the design; timeouts on the server.
   - Verify: tests for 401, 413, malformed JSON, panic → 500 without leaking details, log output contains no secrets.
   - _Requirements: R10.1–R10.4, R10.7, R11.1–R11.3, R11.5, R12.3, R12.4_

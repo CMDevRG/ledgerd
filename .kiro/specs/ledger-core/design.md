@@ -238,7 +238,7 @@ Idempotency-Key: 9b2c6f1e-...
 ### Error model (RFC 9457)
 
 ```json
-{ "type": "https://ledgerd.dev/errors/insufficient_funds", "title": "Insufficient funds",
+{ "type": "urn:ledgerd:error:insufficient_funds", "title": "Insufficient funds",
   "status": 422, "code": "insufficient_funds", "detail": "account … would be overdrawn",
   "instance": "/v1/transactions", "request_id": "…" }
 ```
@@ -249,7 +249,9 @@ Idempotency-Key: 9b2c6f1e-...
 | `unauthorized` | 401 | Missing/invalid API key |
 | `not_found` | 404 | Unknown account/transaction |
 | `account_code_exists`, `already_reversed` | 409 | Uniqueness conflicts |
+| `method_not_allowed` | 405 | Known path, unsupported method (`Allow` header set) |
 | `payload_too_large` | 413 | Body over limit (default 1 MiB) |
+| `unsupported_media_type` | 415 | Request body is not `application/json` (UTF-8) |
 | `validation_error`, `unbalanced_transaction`, `insufficient_funds`, `idempotency_key_reuse` | 422 | Semantic errors |
 | `temporarily_unavailable` | 503 | Lock timeout / retries exhausted; sets `Retry-After` |
 | `internal_error` | 500 | Unexpected; details logged, never returned (R10.4) |
