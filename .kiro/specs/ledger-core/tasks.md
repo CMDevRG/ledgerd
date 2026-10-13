@@ -115,7 +115,7 @@ Conventions:
   - Verify: tests for 401, 413, malformed JSON, panic → 500 without leaking details, log output contains no secrets.
   - _Requirements: R10.1–R10.4, R10.7, R11.1–R11.3, R11.5, R12.3, R12.4_
 
-- [ ] 19. Handlers
+- [x] 19. Handlers
   - Accounts, balance, postings, transactions (create/get/reverse), reconciliations; money fields as strings; JSON numbers for money rejected; `Idempotency-Key` required on writes; `Idempotent-Replayed` header on replay; consistent error mapping.
   - Verify: handler tests with a fake service plus end-to-end tests against the real database.
   - _Requirements: R1–R3, R6, R7, R8, R9, R10.5_

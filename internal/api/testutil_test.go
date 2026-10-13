@@ -96,3 +96,7 @@ func pingRoutes(add routeAdder) {
 		writeJSON(w, r, http.StatusOK, map[string]string{"status": "ok"})
 	})
 }
+
+func slogDiscard(w *bytes.Buffer) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: slog.LevelDebug}))
+}
