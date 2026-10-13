@@ -105,3 +105,19 @@ var ErrAccountCodeExists = errors.New("account code already exists")
 // contention (lock timeout, repeated deadlock or serialization failure). Nothing
 // was changed and the caller may retry.
 var ErrTemporarilyUnavailable = errors.New("temporarily unavailable, retry later")
+
+// ErrAlreadyReversed is returned when reversing a transaction that already has a reversal.
+var ErrAlreadyReversed = errors.New("transaction has already been reversed")
+
+// TransactionNotFoundError reports an unknown transaction id.
+type TransactionNotFoundError struct {
+	ID uuid.UUID
+}
+
+// Error implements error.
+func (e *TransactionNotFoundError) Error() string {
+	return fmt.Sprintf("transaction %s not found", e.ID)
+}
+
+// Is makes errors.Is(err, ErrNotFound) true.
+func (e *TransactionNotFoundError) Is(target error) bool { return target == ErrNotFound }

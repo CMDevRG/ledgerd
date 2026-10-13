@@ -34,6 +34,7 @@ Layering rules:
 
 - `internal/ledger` holds pure domain logic (types, validation, balance rules, reversal construction). It has **no** dependency on HTTP or SQL, so it can be unit- and property-tested without a database.
 - `internal/store` is the only package that talks to PostgreSQL. It exposes a small interface consumed by the service, so the service can also be tested with a fake.
+- `internal/service` orchestrates use cases: it validates, opens a database transaction through the store, locks accounts, applies the pure domain rules and records the result. It depends on the concrete store and is tested against a real PostgreSQL instance (a fake store would not exercise locking, constraints or isolation, which are the point of the project).
 - `internal/api` translates HTTP ⇄ domain, owns authentication, idempotency-key extraction, error mapping, and logging.
 - `internal/reconcile` runs read-only verification queries.
 
@@ -44,7 +45,8 @@ ledgerd/
 ├── cmd/ledgerd/            # main: `serve` and `migrate` subcommands
 ├── internal/
 │   ├── config/             # env parsing + validation
-│   ├── ledger/             # domain types, rules, service
+│   ├── ledger/             # domain types and rules (pure)
+│   ├── service/            # use cases: transactions, reversals, balances
 │   ├── store/              # sqlc queries, tx helper, retry, locking
 │   ├── api/                # router, handlers, middleware, problem+json
 │   └── reconcile/
@@ -126,7 +128,7 @@ CREATE INDEX idempotency_keys_created_idx ON idempotency_keys (created_at);
 
 ### Time and ordering (R7, R8.4)
 
-`transaction.created_at` and `posting.recorded_at` are set by the server with `clock_timestamp()` **while the account locks are held**. Because every write to an account happens under that account's row lock, postings of one account are inserted in a total order, so `postings.id` order equals commit order for that account. All postings of a transaction share a single timestamp, equal to `transactions.created_at`, computed once as `GREATEST(clock_timestamp(), max(last_posting_at) over the locked accounts)`. Taking the maximum keeps `recorded_at` monotonic per account even if the system clock steps backwards, and sharing one timestamp guarantees that an `as_of` query can never land *between* two postings of the same transaction (which would expose an intermediate balance). For the same reason, when an account has several postings in one transaction, `as_of` uses the latest by `id`, which is the committed final balance.
+`transaction.created_at` and `posting.recorded_at` are set by the application (injectable clock, truncated to microseconds) **while the account locks are held**. Because every write to an account happens under that account's row lock, postings of one account are inserted in a total order, so `postings.id` order equals commit order for that account. All postings of a transaction share a single timestamp, equal to `transactions.created_at`, computed once as the greater of the application clock and the `last_posting_at` of every locked account. Taking the maximum keeps `recorded_at` monotonic per account even if the system clock steps backwards, and sharing one timestamp guarantees that an `as_of` query can never land *between* two postings of the same transaction (which would expose an intermediate balance). For the same reason, when an account has several postings in one transaction, `as_of` uses the latest by `id`, which is the committed final balance.
 
 - Balance at `as_of`: the `balance_after` of the latest posting of the account with `recorded_at <= as_of` (ordered by `id DESC`); `0` if none.
 - Pagination cursor: the last `postings.id` returned, base64-encoded; next page is `WHERE account_id = $1 AND id < $cursor ORDER BY id DESC LIMIT $n+1`. Newly inserted rows have larger ids, so they never shift existing pages.

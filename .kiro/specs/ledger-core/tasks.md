@@ -83,7 +83,7 @@ Conventions:
 
 ## Phase 5 — Service
 
-- [ ] 13. Create transaction (without idempotency yet)
+- [x] 13. Create transaction (without idempotency yet)
   - Service method: validate → begin → lock accounts in order → verify currencies → apply rules → insert transaction and postings (`recorded_at = GREATEST(clock_timestamp(), last_posting_at)`) → update balances → commit.
   - Verify: integration tests for success, unbalanced, unknown account, currency mismatch, overdraft (single and multi-account), atomic rollback of everything on failure, `balance_after` correctness.
   - _Requirements: R2.1–R2.9, R4.1, R4.2, R4.4_
