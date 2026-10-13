@@ -55,47 +55,53 @@ func (s *Service) GetTransaction(ctx context.Context, id uuid.UUID) (ledger.Tran
 	return s.store.GetTransaction(ctx, id)
 }
 
-// CreateTransaction validates a request and records it atomically.
-func (s *Service) CreateTransaction(ctx context.Context, req ledger.TransactionRequest) (ledger.Transaction, error) {
+// createdStatus is the HTTP status stored with a completed idempotency key.
+const createdStatus = 201
+
+// TransactionResult is the outcome of a write.
+type TransactionResult struct {
+	Transaction ledger.Transaction
+	// Replayed is true when the key had already been used with the same
+	// request and the original transaction is being returned again.
+	Replayed bool
+}
+
+// CreateTransaction validates a request and records it atomically, exactly
+// once per idempotency key. Validation errors are returned before anything is
+// stored, so a client can fix the request and reuse the key.
+func (s *Service) CreateTransaction(ctx context.Context, idem Idempotency, req ledger.TransactionRequest) (TransactionResult, error) {
+	if err := idem.validate(); err != nil {
+		return TransactionResult{}, err
+	}
 	if err := req.Validate(); err != nil {
-		return ledger.Transaction{}, err
+		return TransactionResult{}, err
 	}
-	var out ledger.Transaction
-	err := s.store.Do(ctx, func(ctx context.Context, tx *store.Tx) error {
-		t, err := s.post(ctx, tx, req, nil)
-		out = t
-		return err
+	return s.idempotent(ctx, idem, func(ctx context.Context, tx *store.Tx) (ledger.Transaction, error) {
+		return s.post(ctx, tx, req, nil)
 	})
-	if err != nil {
-		return ledger.Transaction{}, err
-	}
-	return out, nil
 }
 
 // Reverse records a new transaction that offsets an existing one: the same
 // accounts and amounts with the opposite directions. The original is never
 // modified. A transaction can be reversed once, and the reversal is subject to
 // the same rules as any other transaction (undoing a deposit that has already
-// been spent is rejected by the overdraft check).
-func (s *Service) Reverse(ctx context.Context, id uuid.UUID) (ledger.Transaction, error) {
-	var out ledger.Transaction
-	err := s.store.Do(ctx, func(ctx context.Context, tx *store.Tx) error {
+// been spent is rejected by the overdraft check). Like CreateTransaction it
+// takes effect once per idempotency key.
+func (s *Service) Reverse(ctx context.Context, idem Idempotency, id uuid.UUID) (TransactionResult, error) {
+	if err := idem.validate(); err != nil {
+		return TransactionResult{}, err
+	}
+	return s.idempotent(ctx, idem, func(ctx context.Context, tx *store.Tx) (ledger.Transaction, error) {
 		original, err := tx.LoadTransaction(ctx, id)
 		if err != nil {
-			return err
+			return ledger.Transaction{}, err
 		}
 		rev, err := ledger.Reverse(original)
 		if err != nil {
-			return err
+			return ledger.Transaction{}, err
 		}
-		t, err := s.post(ctx, tx, rev.Request, &rev.ReversesID)
-		out = t
-		return err
+		return s.post(ctx, tx, rev.Request, &rev.ReversesID)
 	})
-	if err != nil {
-		return ledger.Transaction{}, err
-	}
-	return out, nil
 }
 
 // post applies a validated request inside an open transaction: lock the

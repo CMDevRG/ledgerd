@@ -121,3 +121,7 @@ func (e *TransactionNotFoundError) Error() string {
 
 // Is makes errors.Is(err, ErrNotFound) true.
 func (e *TransactionNotFoundError) Is(target error) bool { return target == ErrNotFound }
+
+// ErrIdempotencyKeyReuse is returned when an idempotency key that was already
+// used is sent again with a different request.
+var ErrIdempotencyKeyReuse = errors.New("idempotency key was already used with a different request")

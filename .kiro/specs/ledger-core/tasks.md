@@ -93,7 +93,7 @@ Conventions:
   - Verify: integration tests including overdraft-on-reversal and balances restored.
   - _Requirements: R3.2–R3.5_
 
-- [ ] 15. Idempotency
+- [x] 15. Idempotency
   - Insert key inside the ledger transaction (`ON CONFLICT DO NOTHING`), canonical request hashing (`method + path + canonical body`), replay of stored response, `idempotency_key_reuse` on hash mismatch, cleanup goroutine for expired keys.
   - Verify: integration tests for first call, replay, mismatch, failed attempt leaves no key, and expired-key cleanup.
   - _Requirements: R6.1–R6.7_

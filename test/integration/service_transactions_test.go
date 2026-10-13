@@ -89,7 +89,7 @@ func TestCreateTransaction_Rejections_PersistNothing(t *testing.T) {
 		cash, wallet := e.cashAndWallet(t)
 		req := transfer(t, cash.ID, wallet.ID, "100", "USD")
 		req.Postings[1].Amount = amt(t, "99")
-		if _, err := e.svc.CreateTransaction(ctx, req); !errors.Is(err, ledger.ErrUnbalanced) {
+		if _, err := e.create(ctx, req); !errors.Is(err, ledger.ErrUnbalanced) {
 			t.Fatalf("want ErrUnbalanced, got %v", err)
 		}
 		e.requireNothingPersisted(t)
@@ -99,7 +99,7 @@ func TestCreateTransaction_Rejections_PersistNothing(t *testing.T) {
 	t.Run("structurally invalid", func(t *testing.T) {
 		e := newEnv(t)
 		cash, _ := e.cashAndWallet(t)
-		_, err := e.svc.CreateTransaction(ctx, ledger.TransactionRequest{Postings: []ledger.PostingInput{in(t, cash.ID, ledger.Debit, "1", "USD")}})
+		_, err := e.create(ctx, ledger.TransactionRequest{Postings: []ledger.PostingInput{in(t, cash.ID, ledger.Debit, "1", "USD")}})
 		var ve *ledger.ValidationError
 		if !errors.As(err, &ve) {
 			t.Fatalf("want *ValidationError, got %v", err)
@@ -111,7 +111,7 @@ func TestCreateTransaction_Rejections_PersistNothing(t *testing.T) {
 		e := newEnv(t)
 		cash, _ := e.cashAndWallet(t)
 		ghost := uuid.New()
-		_, err := e.svc.CreateTransaction(ctx, transfer(t, cash.ID, ghost, "5", "USD"))
+		_, err := e.create(ctx, transfer(t, cash.ID, ghost, "5", "USD"))
 		var nf *ledger.AccountNotFoundError
 		if !errors.As(err, &nf) || nf.ID != ghost {
 			t.Fatalf("want AccountNotFoundError for %s, got %v", ghost, err)
@@ -125,7 +125,7 @@ func TestCreateTransaction_Rejections_PersistNothing(t *testing.T) {
 		cash, _ := e.cashAndWallet(t)
 		eur := e.account(t, "eur-wallet", "EUR", ledger.Liability, ledger.Credit, false)
 		// Balanced in USD terms, but the second posting claims USD for an EUR account.
-		_, err := e.svc.CreateTransaction(ctx, transfer(t, cash.ID, eur.ID, "5", "USD"))
+		_, err := e.create(ctx, transfer(t, cash.ID, eur.ID, "5", "USD"))
 		var ve *ledger.ValidationError
 		if !errors.As(err, &ve) {
 			t.Fatalf("want *ValidationError, got %v", err)
@@ -140,7 +140,7 @@ func TestCreateTransaction_Rejections_PersistNothing(t *testing.T) {
 		wallet := e.account(t, "user-wallet", "USD", ledger.Liability, ledger.Credit, false)
 		e.mustCreate(t, transfer(t, cash.ID, wallet.ID, "50", "USD"))
 
-		_, err := e.svc.CreateTransaction(ctx, transfer(t, wallet.ID, cash.ID, "80", "USD"))
+		_, err := e.create(ctx, transfer(t, wallet.ID, cash.ID, "80", "USD"))
 		var ife *ledger.InsufficientFundsError
 		if !errors.Is(err, ledger.ErrInsufficientFunds) || !errors.As(err, &ife) {
 			t.Fatalf("want insufficient funds, got %v", err)
@@ -168,7 +168,7 @@ func TestCreateTransaction_Rejections_PersistNothing(t *testing.T) {
 			in(t, other.ID, ledger.Debit, "100", "USD"),
 			in(t, cash.ID, ledger.Credit, "200", "USD"),
 		}}
-		if _, err := e.svc.CreateTransaction(ctx, req); !errors.Is(err, ledger.ErrInsufficientFunds) {
+		if _, err := e.create(ctx, req); !errors.Is(err, ledger.ErrInsufficientFunds) {
 			t.Fatalf("want insufficient funds, got %v", err)
 		}
 		e.requireBalance(t, wallet.ID, "1000")
@@ -274,7 +274,7 @@ func TestCreateTransaction_DatabaseFailureMidwayRollsBackEverything(t *testing.T
 		t.Fatal(err)
 	}
 
-	_, err := e.svc.CreateTransaction(ctx, transfer(t, cash.ID, wallet.ID, "10", "USD"))
+	_, err := e.create(ctx, transfer(t, cash.ID, wallet.ID, "10", "USD"))
 	if err == nil {
 		t.Fatal("expected the database to refuse a balance beyond 38 digits")
 	}

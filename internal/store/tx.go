@@ -1,7 +1,9 @@
 package store
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -160,4 +162,67 @@ func lessUUID(a, b uuid.UUID) bool {
 // immutable once committed, so reading them with two statements is consistent.
 func (s *Store) GetTransaction(ctx context.Context, id uuid.UUID) (ledger.Transaction, error) {
 	return loadTransaction(ctx, s.Queries(), id)
+}
+
+// ClaimIdempotencyKey registers the key for the current transaction. It reports
+// false if the key is already taken by a committed request.
+//
+// If another in-flight transaction has claimed the same key but not yet
+// committed, this call blocks until that transaction finishes (PostgreSQL
+// waits on the unique index entry): afterwards the answer is "taken" if it
+// committed and "free" if it rolled back. That wait is what turns concurrent
+// duplicates into exactly one effect. The wait is bounded by lock_timeout.
+func (t *Tx) ClaimIdempotencyKey(ctx context.Context, key string, requestHash []byte) (bool, error) {
+	_, err := t.q.ClaimIdempotencyKey(ctx, db.ClaimIdempotencyKeyParams{Key: key, RequestHash: requestHash})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("claim idempotency key: %w", err)
+	}
+	return true, nil
+}
+
+// StoredResult returns the id of the transaction created by an earlier request
+// with this key. It fails with ledger.ErrIdempotencyKeyReuse if that earlier
+// request was different (its hash does not match).
+func (t *Tx) StoredResult(ctx context.Context, key string, requestHash []byte) (uuid.UUID, error) {
+	rec, err := t.q.GetIdempotencyKey(ctx, key)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get idempotency key: %w", err)
+	}
+	if !bytes.Equal(rec.RequestHash, requestHash) {
+		return uuid.Nil, ledger.ErrIdempotencyKeyReuse
+	}
+	if rec.TransactionID == nil {
+		return uuid.Nil, errors.New("idempotency key has no recorded result")
+	}
+	return *rec.TransactionID, nil
+}
+
+// CompleteIdempotencyKey records the outcome of the request that claimed the key.
+// The stored response is the HTTP status and a small JSON body referencing the
+// transaction; replays re-read the (immutable) transaction instead of caching
+// a rendered response.
+func (t *Tx) CompleteIdempotencyKey(ctx context.Context, key string, status int, transactionID uuid.UUID) error {
+	body, err := json.Marshal(map[string]string{"transaction_id": transactionID.String()})
+	if err != nil {
+		return fmt.Errorf("encode idempotency response: %w", err)
+	}
+	if err := t.q.CompleteIdempotencyKey(ctx, db.CompleteIdempotencyKeyParams{
+		Key: key, ResponseStatus: int32(status), ResponseBody: body, TransactionID: &transactionID, //nolint:gosec // status is a small HTTP code
+	}); err != nil {
+		return fmt.Errorf("complete idempotency key: %w", err)
+	}
+	return nil
+}
+
+// DeleteIdempotencyKeysBefore removes keys created before the given instant
+// and returns how many were deleted.
+func (s *Store) DeleteIdempotencyKeysBefore(ctx context.Context, before time.Time) (int64, error) {
+	n, err := s.Queries().DeleteExpiredIdempotencyKeys(ctx, before)
+	if err != nil {
+		return 0, fmt.Errorf("delete expired idempotency keys: %w", err)
+	}
+	return n, nil
 }

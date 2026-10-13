@@ -97,9 +97,27 @@ func transfer(t testing.TB, debit, credit uuid.UUID, amount, currency string) le
 	}}
 }
 
+// freshKey returns an idempotency key that has never been used.
+func freshKey() service.Idempotency {
+	key := uuid.NewString()
+	return service.Idempotency{Key: key, RequestHash: service.RequestHash("TEST", key, nil)}
+}
+
+// create submits a transaction with a fresh idempotency key.
+func (e *env) create(ctx context.Context, req ledger.TransactionRequest) (ledger.Transaction, error) {
+	res, err := e.svc.CreateTransaction(ctx, freshKey(), req)
+	return res.Transaction, err
+}
+
+// reverse reverses a transaction with a fresh idempotency key.
+func (e *env) reverse(ctx context.Context, id uuid.UUID) (ledger.Transaction, error) {
+	res, err := e.svc.Reverse(ctx, freshKey(), id)
+	return res.Transaction, err
+}
+
 func (e *env) mustCreate(t *testing.T, req ledger.TransactionRequest) ledger.Transaction {
 	t.Helper()
-	tx, err := e.svc.CreateTransaction(context.Background(), req)
+	tx, err := e.create(context.Background(), req)
 	if err != nil {
 		t.Fatalf("transaction should have been accepted: %v", err)
 	}
@@ -139,5 +157,13 @@ func (e *env) requireNothingPersisted(t *testing.T) {
 	}
 	if n := e.count(t, "postings"); n != 0 {
 		t.Errorf("%d postings persisted, want 0", n)
+	}
+}
+
+// requireNothingPersistedExcept asserts the number of transactions.
+func (e *env) requireNothingPersistedExcept(t *testing.T, transactions int) {
+	t.Helper()
+	if n := e.count(t, "transactions"); n != transactions {
+		t.Errorf("%d transactions persisted, want %d", n, transactions)
 	}
 }

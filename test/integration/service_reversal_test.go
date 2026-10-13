@@ -17,7 +17,7 @@ func TestReverse_OffsetsTheOriginal(t *testing.T) {
 	cash, wallet := e.cashAndWallet(t)
 
 	original := e.mustCreate(t, transfer(t, cash.ID, wallet.ID, "10000", "USD"))
-	rev, err := e.svc.Reverse(ctx, original.ID)
+	rev, err := e.reverse(ctx, original.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,10 +60,10 @@ func TestReverse_CanOnlyHappenOnce(t *testing.T) {
 	cash, wallet := e.cashAndWallet(t)
 	original := e.mustCreate(t, transfer(t, cash.ID, wallet.ID, "100", "USD"))
 
-	if _, err := e.svc.Reverse(ctx, original.ID); err != nil {
+	if _, err := e.reverse(ctx, original.ID); err != nil {
 		t.Fatal(err)
 	}
-	_, err := e.svc.Reverse(ctx, original.ID)
+	_, err := e.reverse(ctx, original.ID)
 	if !errors.Is(err, ledger.ErrAlreadyReversed) {
 		t.Fatalf("want ErrAlreadyReversed, got %v", err)
 	}
@@ -76,7 +76,7 @@ func TestReverse_CanOnlyHappenOnce(t *testing.T) {
 func TestReverse_UnknownTransaction(t *testing.T) {
 	e := newEnv(t)
 	missing := uuid.New()
-	_, err := e.svc.Reverse(context.Background(), missing)
+	_, err := e.reverse(context.Background(), missing)
 	var nf *ledger.TransactionNotFoundError
 	if !errors.Is(err, ledger.ErrNotFound) || !errors.As(err, &nf) || nf.ID != missing {
 		t.Fatalf("want TransactionNotFoundError for %s, got %v", missing, err)
@@ -91,7 +91,7 @@ func TestReverse_ObeysTheOverdraftRule(t *testing.T) {
 	deposit := e.mustCreate(t, transfer(t, cash.ID, wallet.ID, "10000", "USD"))
 	e.mustCreate(t, transfer(t, wallet.ID, cash.ID, "10000", "USD")) // the user spends it all
 
-	_, err := e.svc.Reverse(ctx, deposit.ID)
+	_, err := e.reverse(ctx, deposit.ID)
 	if !errors.Is(err, ledger.ErrInsufficientFunds) {
 		t.Fatalf("undoing a spent deposit must be rejected, got %v", err)
 	}
@@ -102,7 +102,7 @@ func TestReverse_ObeysTheOverdraftRule(t *testing.T) {
 	// The failed attempt did not "use up" the single reversal: once the money is
 	// back, the deposit can be reversed.
 	e.mustCreate(t, transfer(t, cash.ID, wallet.ID, "10000", "USD"))
-	if _, err := e.svc.Reverse(ctx, deposit.ID); err != nil {
+	if _, err := e.reverse(ctx, deposit.ID); err != nil {
 		t.Fatalf("reversal should now be accepted: %v", err)
 	}
 	e.requireBalance(t, wallet.ID, "0")
@@ -115,11 +115,11 @@ func TestReverse_AReversalCanItselfBeReversed(t *testing.T) {
 	cash, wallet := e.cashAndWallet(t)
 
 	original := e.mustCreate(t, transfer(t, cash.ID, wallet.ID, "500", "USD"))
-	rev, err := e.svc.Reverse(ctx, original.ID)
+	rev, err := e.reverse(ctx, original.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	again, err := e.svc.Reverse(ctx, rev.ID)
+	again, err := e.reverse(ctx, rev.ID)
 	if err != nil {
 		t.Fatalf("reversing a reversal re-applies the original effect: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestReverse_MultiPostingMultiCurrency(t *testing.T) {
 		in(t, ethCash.ID, ledger.Debit, "9223372036854775809", "ETH"),
 		in(t, ethWallet.ID, ledger.Credit, "9223372036854775809", "ETH"),
 	}})
-	if _, err := e.svc.Reverse(ctx, original.ID); err != nil {
+	if _, err := e.reverse(ctx, original.ID); err != nil {
 		t.Fatal(err)
 	}
 	for _, a := range []ledger.Account{usdCash, usdWallet, usdFee, ethCash, ethWallet} {
@@ -174,7 +174,7 @@ func TestReverse_ConcurrentAttemptsExactlyOneWins(t *testing.T) {
 		go func() {
 			defer done.Done()
 			start.Wait()
-			_, results[i] = e.svc.Reverse(ctx, original.ID)
+			_, results[i] = e.reverse(ctx, original.ID)
 		}()
 	}
 	start.Done()
