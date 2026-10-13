@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // Violation describes one invalid field in a request.
@@ -59,3 +61,38 @@ func (e *UnbalancedError) Error() string {
 
 // Is makes errors.Is(err, ErrUnbalanced) true for any *UnbalancedError.
 func (e *UnbalancedError) Is(target error) bool { return target == ErrUnbalanced }
+
+// ErrInsufficientFunds is matched (errors.Is) by every *InsufficientFundsError.
+var ErrInsufficientFunds = errors.New("insufficient funds")
+
+// InsufficientFundsError reports that applying a transaction would leave an
+// account that must not go negative with a negative balance.
+type InsufficientFundsError struct {
+	AccountID uuid.UUID
+	// Balance is the balance the account would have had (negative).
+	Balance string
+	// Shortfall is how much is missing to keep the balance at zero.
+	Shortfall string
+}
+
+// Error implements error.
+func (e *InsufficientFundsError) Error() string {
+	return fmt.Sprintf("insufficient funds: account %s would be overdrawn by %s", e.AccountID, e.Shortfall)
+}
+
+// Is makes errors.Is(err, ErrInsufficientFunds) true.
+func (e *InsufficientFundsError) Is(target error) bool { return target == ErrInsufficientFunds }
+
+// ErrNotFound is matched (errors.Is) by every "not found" domain error.
+var ErrNotFound = errors.New("not found")
+
+// AccountNotFoundError reports a posting that references an unknown account.
+type AccountNotFoundError struct {
+	ID uuid.UUID
+}
+
+// Error implements error.
+func (e *AccountNotFoundError) Error() string { return fmt.Sprintf("account %s not found", e.ID) }
+
+// Is makes errors.Is(err, ErrNotFound) true.
+func (e *AccountNotFoundError) Is(target error) bool { return target == ErrNotFound }

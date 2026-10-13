@@ -36,7 +36,7 @@ Conventions:
   - Verify: table-driven unit tests covering every validation rule.
   - _Requirements: R1.3, R1.4, R2.1, R2.2, R2.4_
 
-- [ ] 5. Balance application rules
+- [x] 5. Balance application rules
   - Pure function that, given locked account states and a validated transaction, returns new balances and each posting's `balance_after` (sequential application per account), and decides overdraft on the **final** net balance for accounts with `allow_negative = false`.
   - Verify: unit tests (multi-posting same account, credit-normal vs debit-normal, exact-zero boundary, overdraft rejects the whole transaction); property tests with `rapid`: Σdebits = Σcredits preserved and no non-negative account ends negative, using amounts above 2⁶³.
   - _Requirements: R2.8, R4.1, R4.2, R4.4, R5.5_
