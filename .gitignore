@@ -1,0 +1,18 @@
+# Build output
+/bin/
+/ledgerd
+*.test
+*.out
+
+# Local configuration and secrets (never commit)
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.idea/
+.DS_Store
+*.swp
+
+# Benchmark artifacts
+/bench/results/*.json
