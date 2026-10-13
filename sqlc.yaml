@@ -1,0 +1,38 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    # goose migrations are read directly; sqlc ignores the "-- +goose Down" parts.
+    schema: "migrations"
+    queries: "internal/store/queries"
+    gen:
+      go:
+        package: "db"
+        out: "internal/store/db"
+        sql_package: "pgx/v5"
+        emit_json_tags: false
+        emit_empty_slices: true
+        overrides:
+          # UUIDs as github.com/google/uuid.UUID (pointer when nullable).
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+              pointer: true
+          # NUMERIC(38,0) amounts and balances as exact integers.
+          - db_type: "pg_catalog.numeric"
+            go_type:
+              import: "github.com/radadev/ledgerd/internal/pgnum"
+              package: "pgnum"
+              type: "Int"
+          # Timestamps as time.Time (pointer when nullable).
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "timestamptz"
+            nullable: true
+            go_type:
+              import: "time"
+              type: "Time"
+              pointer: true

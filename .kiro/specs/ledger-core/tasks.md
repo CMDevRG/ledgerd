@@ -66,17 +66,17 @@ Conventions:
 
 ## Phase 4 — Store layer
 
-- [ ] 10. sqlc setup and numeric conversion
+- [x] 10. sqlc setup and numeric conversion
   - `sqlc.yaml` (pgx/v5), query files for accounts, transactions, postings, idempotency keys; `internal/store` helpers converting `pgtype.Numeric` ⇄ `*big.Int`.
   - Verify: round-trip property test through the real database with values up to 10³⁰ and balances above 2⁶³; `sqlc generate` has no diff in CI.
   - _Requirements: R2.4, R13.6_
 
-- [ ] 11. Transaction helper with retry and lock timeout
+- [x] 11. Transaction helper with retry and lock timeout
   - Helper running a function inside a `READ COMMITTED` transaction with `SET LOCAL lock_timeout`, retrying SQLSTATE `40001` and `40P01` up to 3 times with jittered backoff, mapping `55P03` and exhausted retries to a retryable error.
   - Verify: tests that inject serialization failures (via a fake) and a real lock-timeout scenario.
   - _Requirements: R5.4_
 
-- [ ] 12. Account store operations
+- [x] 12. Account store operations
   - Create account (unique code → conflict), get by id, lock accounts `ORDER BY id FOR UPDATE`.
   - Verify: integration tests for create/conflict/get/not-found and that lock order is by id.
   - _Requirements: R1.1, R1.2, R1.5, R1.6, R5.3_
