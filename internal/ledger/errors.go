@@ -96,3 +96,12 @@ func (e *AccountNotFoundError) Error() string { return fmt.Sprintf("account %s n
 
 // Is makes errors.Is(err, ErrNotFound) true.
 func (e *AccountNotFoundError) Is(target error) bool { return target == ErrNotFound }
+
+// ErrAccountCodeExists is returned when creating an account whose code is
+// already in use.
+var ErrAccountCodeExists = errors.New("account code already exists")
+
+// ErrTemporarilyUnavailable means the operation was not performed because of
+// contention (lock timeout, repeated deadlock or serialization failure). Nothing
+// was changed and the caller may retry.
+var ErrTemporarilyUnavailable = errors.New("temporarily unavailable, retry later")
