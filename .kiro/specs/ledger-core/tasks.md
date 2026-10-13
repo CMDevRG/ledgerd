@@ -98,7 +98,7 @@ Conventions:
   - Verify: integration tests for first call, replay, mismatch, failed attempt leaves no key, and expired-key cleanup.
   - _Requirements: R6.1–R6.7_
 
-- [ ] 16. Balances and posting history
+- [x] 16. Balances and posting history
   - Current balance with last-posting timestamp; `as_of` lookup (future → current, none → zero); keyset pagination with opaque cursor, default 50 / max 200, validation of `limit` and cursor.
   - Verify: integration tests including pagination stability while inserting concurrently, and `as_of` at boundaries.
   - _Requirements: R7.1–R7.5, R8.1–R8.5_
