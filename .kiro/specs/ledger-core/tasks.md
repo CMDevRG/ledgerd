@@ -41,7 +41,7 @@ Conventions:
   - Verify: unit tests (multi-posting same account, credit-normal vs debit-normal, exact-zero boundary, overdraft rejects the whole transaction); property tests with `rapid`: Σdebits = Σcredits preserved and no non-negative account ends negative, using amounts above 2⁶³.
   - _Requirements: R2.8, R4.1, R4.2, R4.4, R5.5_
 
-- [ ] 6. Reversal construction
+- [x] 6. Reversal construction
   - Pure function building mirror postings (opposite direction, same accounts/amounts) from an existing transaction.
   - Verify: property test — applying a transaction and then its reversal restores every balance.
   - _Requirements: R3.2_
