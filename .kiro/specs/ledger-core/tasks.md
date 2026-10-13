@@ -103,7 +103,7 @@ Conventions:
   - Verify: integration tests including pagination stability while inserting concurrently, and `as_of` at boundaries.
   - _Requirements: R7.1–R7.5, R8.1–R8.5_
 
-- [ ] 17. Reconciliation
+- [x] 17. Reconciliation
   - `internal/reconcile`: run in `REPEATABLE READ READ ONLY`; per-account recomputation, global debit/credit equality per currency, optional deep `balance_after` chain check; report structure.
   - Verify: tests that a clean ledger reports zero mismatches, and that a deliberately corrupted balance (via the owner role in the test) is detected; run reconciliation while writes continue and assert no false mismatches.
   - _Requirements: R9.1–R9.5_

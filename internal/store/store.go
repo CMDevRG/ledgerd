@@ -10,6 +10,7 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -92,11 +93,16 @@ func (s *Store) Queries() *db.Queries { return db.New(s.pool) }
 //     transaction. When the attempts run out the error is
 //     ledger.ErrTemporarilyUnavailable.
 func (s *Store) InTx(ctx context.Context, fn func(ctx context.Context, q *db.Queries) error) error {
-	return s.retrying(ctx, func() error { return s.runOnce(ctx, fn) })
+	return s.retrying(ctx, func() error {
+		return s.runOnce(ctx, pgx.TxOptions{}, func(ctx context.Context, tx pgx.Tx) error {
+			return fn(ctx, db.New(tx))
+		})
+	})
 }
 
-func (s *Store) runOnce(ctx context.Context, fn func(ctx context.Context, q *db.Queries) error) (err error) {
-	tx, err := s.pool.Begin(ctx)
+// runOnce executes fn in one database transaction, once.
+func (s *Store) runOnce(ctx context.Context, opts pgx.TxOptions, fn func(ctx context.Context, tx pgx.Tx) error) (err error) {
+	tx, err := s.pool.BeginTx(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -109,7 +115,7 @@ func (s *Store) runOnce(ctx context.Context, fn func(ctx context.Context, q *db.
 		return fmt.Errorf("set lock_timeout: %w", err)
 	}
 
-	if err := fn(ctx, db.New(tx)); err != nil {
+	if err := fn(ctx, tx); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
