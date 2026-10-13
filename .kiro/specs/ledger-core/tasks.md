@@ -48,18 +48,18 @@ Conventions:
 
 ## Phase 3 — Database
 
-- [ ] 7. Roles and migrations
+- [x] 7. Roles and migrations
   - `deploy/initdb/01-roles.sql` creating `ledgerd_owner` and `ledgerd_app` (least privilege).
   - Goose migrations (embedded): tables, constraints, indexes, composite FK, `non_negative` check, append-only triggers (row-level and TRUNCATE), deferred balance constraint trigger, grants for `ledgerd_app` (including `UPDATE (balance, last_posting_at)` on `accounts` only).
   - Verify: migrations apply cleanly on an empty database and roll back.
   - _Requirements: R2.6, R3.1, R3.3, R3.6, R4.3, R15.1_
 
-- [ ] 8. Integration-test harness
+- [x] 8. Integration-test harness
   - `test/integration`: helper that starts `postgres:16-alpine` with testcontainers, creates roles, runs migrations as owner, and returns pools for owner and app roles. One container per package, schema reset per test.
   - Verify: smoke test connects and sees the schema.
   - _Requirements: R13.2_
 
-- [ ] 9. Database safeguard tests
+- [x] 9. Database safeguard tests
   - As `ledgerd_app`: `UPDATE`/`DELETE`/`TRUNCATE` on `postings` and `transactions` fail; direct insert of an unbalanced transaction fails at commit; negative balance on a non-negative account fails; posting with mismatched currency fails; second reversal fails on the unique constraint; `UPDATE accounts SET code=...` is denied.
   - Verify: tests pass; each safeguard is proven independent of application code.
   - _Requirements: R2.2, R2.6, R3.1, R3.3, R3.6, R4.3_
