@@ -155,3 +155,9 @@ func lessUUID(a, b uuid.UUID) bool {
 	}
 	return false
 }
+
+// GetTransaction returns a committed transaction with its postings. Both are
+// immutable once committed, so reading them with two statements is consistent.
+func (s *Store) GetTransaction(ctx context.Context, id uuid.UUID) (ledger.Transaction, error) {
+	return loadTransaction(ctx, s.Queries(), id)
+}

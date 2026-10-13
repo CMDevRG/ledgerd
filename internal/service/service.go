@@ -50,6 +50,11 @@ func (s *Service) GetAccount(ctx context.Context, id uuid.UUID) (ledger.Account,
 	return s.store.GetAccount(ctx, id)
 }
 
+// GetTransaction returns a transaction with its postings.
+func (s *Service) GetTransaction(ctx context.Context, id uuid.UUID) (ledger.Transaction, error) {
+	return s.store.GetTransaction(ctx, id)
+}
+
 // CreateTransaction validates a request and records it atomically.
 func (s *Service) CreateTransaction(ctx context.Context, req ledger.TransactionRequest) (ledger.Transaction, error) {
 	if err := req.Validate(); err != nil {
@@ -58,6 +63,32 @@ func (s *Service) CreateTransaction(ctx context.Context, req ledger.TransactionR
 	var out ledger.Transaction
 	err := s.store.Do(ctx, func(ctx context.Context, tx *store.Tx) error {
 		t, err := s.post(ctx, tx, req, nil)
+		out = t
+		return err
+	})
+	if err != nil {
+		return ledger.Transaction{}, err
+	}
+	return out, nil
+}
+
+// Reverse records a new transaction that offsets an existing one: the same
+// accounts and amounts with the opposite directions. The original is never
+// modified. A transaction can be reversed once, and the reversal is subject to
+// the same rules as any other transaction (undoing a deposit that has already
+// been spent is rejected by the overdraft check).
+func (s *Service) Reverse(ctx context.Context, id uuid.UUID) (ledger.Transaction, error) {
+	var out ledger.Transaction
+	err := s.store.Do(ctx, func(ctx context.Context, tx *store.Tx) error {
+		original, err := tx.LoadTransaction(ctx, id)
+		if err != nil {
+			return err
+		}
+		rev, err := ledger.Reverse(original)
+		if err != nil {
+			return err
+		}
+		t, err := s.post(ctx, tx, rev.Request, &rev.ReversesID)
 		out = t
 		return err
 	})
@@ -77,6 +108,21 @@ func (s *Service) post(ctx context.Context, tx *store.Tx, req ledger.Transaction
 	accounts, err := tx.LockAccounts(ctx, ids)
 	if err != nil {
 		return ledger.Transaction{}, err
+	}
+
+	// A reversal is checked AFTER the locks are held. If two requests race to
+	// reverse the same transaction, the loser waits for the winner's locks and
+	// then sees the committed reversal here, so it is told "already reversed"
+	// rather than failing the overdraft check against the balances the winner
+	// left behind. (The unique constraint on reverses_id remains the final guard.)
+	if reverses != nil {
+		existing, err := tx.ReversalOf(ctx, *reverses)
+		if err != nil {
+			return ledger.Transaction{}, err
+		}
+		if existing != nil {
+			return ledger.Transaction{}, ledger.ErrAlreadyReversed
+		}
 	}
 
 	applied, err := ledger.Apply(accounts, req)

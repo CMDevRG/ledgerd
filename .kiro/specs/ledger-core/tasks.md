@@ -88,7 +88,7 @@ Conventions:
   - Verify: integration tests for success, unbalanced, unknown account, currency mismatch, overdraft (single and multi-account), atomic rollback of everything on failure, `balance_after` correctness.
   - _Requirements: R2.1–R2.9, R4.1, R4.2, R4.4_
 
-- [ ] 14. Reversal
+- [x] 14. Reversal
   - Reverse method: load original, build mirror postings, insert with `reverses_id`, apply overdraft rules; duplicate reversal → `already_reversed`; unknown → not found.
   - Verify: integration tests including overdraft-on-reversal and balances restored.
   - _Requirements: R3.2–R3.5_
