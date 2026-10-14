@@ -19,5 +19,7 @@
   - Verify: run the workflow's steps locally up to the push (build both images, smoke test against them); `actionlint`.
   - _Requirements: R17.1–R17.6_
 
-- [ ] 37. Documentation, traceability and release 0.2.0
+- [x] 37. Documentation, traceability and release 0.2.0
   - README (endpoint table, images), traceability matrix for R16 and R17, ADR if needed, full test run, tag `v0.2.0`, watch the release workflow, record the digests.
+
+Status: released as v0.2.0. The images were published by the release workflow, are public (an anonymous `docker pull` works), and their digests are in the GitHub release notes.
