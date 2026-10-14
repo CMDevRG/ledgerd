@@ -72,7 +72,10 @@ func TestAPI_FullLifecycle(t *testing.T) {
 
 	// ---- overdraft and unbalanced requests are refused with explanations ----
 	over := a.mustStatus(t, a.do(t, "POST", "/v1/transactions", txBody(wallet, cash, "10001", "USD"), "Idempotency-Key", "w-1"), 422).json(t)
-	if over["code"] != "insufficient_funds" || !strings.Contains(over["detail"].(string), wallet) || !strings.Contains(over["detail"].(string), "1") {
+	// Both accounts are protected and both would end at -1, so the one named is
+	// whichever has the lower id: either is a correct answer.
+	detail, _ := over["detail"].(string)
+	if over["code"] != "insufficient_funds" || !(strings.Contains(detail, wallet) || strings.Contains(detail, cash)) || !strings.Contains(detail, "overdrawn by 1") {
 		t.Errorf("overdraft: %v", over)
 	}
 	unbalanced := `{"postings":[` +
