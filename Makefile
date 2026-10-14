@@ -31,8 +31,20 @@ fmt: ## Format code
 run: ## Run the service (requires configuration in the environment)
 	$(GO) run ./cmd/ledgerd serve
 
-bench: ## Run the k6 benchmark (added in task 25)
-	@echo "benchmark not implemented yet (task 25)"; exit 1
+# Pinned k6 image (tag and digest). The benchmark runs inside the compose network,
+# so it talks to the API container directly.
+K6_IMAGE := grafana/k6:2.3.0@sha256:e66db15b860113878fa74670e31f5e274830b7b6e42c8bff28b2f2d86a257603
+
+bench: ## Load test the running compose stack (VUS, DURATION, PAIRS, SCENARIOS tune it)
+	@test -f .env || { echo "no .env: run 'make up' first"; exit 1; }
+	@mkdir -p bench/results
+	@set -a; . ./.env; set +a; \
+	  ./scripts/bench-env.sh | tee bench/results/environment.txt; \
+	  docker run --rm --user "$$(id -u):$$(id -g)" --network ledgerd_default \
+	    -v "$$PWD/bench/k6:/scripts:ro" -v "$$PWD/bench/results:/results" \
+	    -e BASE_URL=http://api:8085 -e API_KEY="$$LEDGERD_API_KEY" \
+	    -e VUS -e DURATION -e PAIRS -e SCENARIOS \
+	    $(K6_IMAGE) run /scripts/transfers.js
 
 tidy: ## Tidy go.mod
 	$(GO) mod tidy

@@ -14,5 +14,6 @@
 .DS_Store
 *.swp
 
-# Benchmark artifacts
-/bench/results/*.json
+# Benchmark artifacts (raw output stays local; curated numbers go in the README)
+/bench/results/*
+!/bench/results/.gitkeep

@@ -148,7 +148,7 @@ Conventions:
   - Verify: `docker compose up` from a clean clone reaches healthy; `curl` smoke test of create account → transaction → balance.
   - _Requirements: R15.1, R15.2, R15.4_
 
-- [ ] 25. k6 benchmark
+- [x] 25. k6 benchmark
   - `bench/k6/` script (setup creates accounts; scenarios: transfers between random pairs and a hot-account case); `make bench` runs it via the `grafana/k6` image; final step triggers reconciliation and fails the run on any mismatch.
   - Verify: results captured with hardware/software versions.
   - _Requirements: R14.1–R14.4_
