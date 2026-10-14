@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"time"
 
@@ -44,21 +45,55 @@ type handlers struct {
 	readyTimeout time.Duration
 }
 
+type route struct {
+	pattern string
+	handler http.HandlerFunc
+}
+
+func (h *handlers) routes() []route {
+	return []route{
+		{"GET /healthz", h.healthz},
+		{"GET /readyz", h.readyz},
+		{"POST /v1/accounts", h.createAccount},
+		{"GET /v1/accounts/{id}", h.getAccount},
+		{"GET /v1/accounts/{id}/balance", h.getBalance},
+		{"GET /v1/accounts/{id}/postings", h.listPostings},
+		{"POST /v1/transactions", h.createTransaction},
+		{"GET /v1/transactions/{id}", h.getTransaction},
+		{"POST /v1/transactions/{id}/reverse", h.reverseTransaction},
+		{"POST /v1/reconciliations", h.reconcile},
+	}
+}
+
+// RoutePatterns lists every endpoint as "METHOD /path/{param}". The contract
+// tests compare it with docs/openapi.yaml so the two cannot drift apart.
+func RoutePatterns() []string {
+	rs := (&handlers{}).routes()
+	out := make([]string, len(rs))
+	for i, r := range rs {
+		out[i] = r.pattern
+	}
+	return out
+}
+
+// ErrorCodes lists every error code the API can return, sorted.
+func ErrorCodes() []string {
+	codes := make([]string, 0, len(catalog))
+	for c := range catalog {
+		codes = append(codes, c)
+	}
+	slices.Sort(codes)
+	return codes
+}
+
 // New returns the complete HTTP handler of the service.
 func New(o Options, d Deps) http.Handler {
 	o = o.withDefaults()
 	h := &handlers{d: d, log: o.Logger, readyTimeout: o.ReadyTimeout}
 	return build(o, func(add routeAdder) {
-		add("GET /healthz", h.healthz)
-		add("GET /readyz", h.readyz)
-		add("POST /v1/accounts", h.createAccount)
-		add("GET /v1/accounts/{id}", h.getAccount)
-		add("GET /v1/accounts/{id}/balance", h.getBalance)
-		add("GET /v1/accounts/{id}/postings", h.listPostings)
-		add("POST /v1/transactions", h.createTransaction)
-		add("GET /v1/transactions/{id}", h.getTransaction)
-		add("POST /v1/transactions/{id}/reverse", h.reverseTransaction)
-		add("POST /v1/reconciliations", h.reconcile)
+		for _, r := range h.routes() {
+			add(r.pattern, r.handler)
+		}
 	})
 }
 

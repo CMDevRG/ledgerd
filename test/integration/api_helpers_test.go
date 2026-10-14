@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/radadev/ledgerd/internal/api"
+	"github.com/radadev/ledgerd/internal/apicontract"
 	"github.com/radadev/ledgerd/internal/config"
 	"github.com/radadev/ledgerd/internal/ledger"
 	"github.com/radadev/ledgerd/internal/reconcile"
@@ -25,7 +27,8 @@ const apiKey = "integration-test-api-key-0123456789"
 // apiEnv is a real HTTP server in front of the real service and database.
 type apiEnv struct {
 	*env
-	srv *httptest.Server
+	srv      *httptest.Server
+	contract *apicontract.Contract
 }
 
 func newAPIEnv(t *testing.T) *apiEnv {
@@ -47,7 +50,12 @@ func newAPIEnv(t *testing.T) *apiEnv {
 	})
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
-	return &apiEnv{env: &env{db: database, st: st, svc: svc, clock: newFakeClock()}, srv: srv}
+
+	contract, err := apicontract.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &apiEnv{env: &env{db: database, st: st, svc: svc, clock: newFakeClock()}, srv: srv, contract: contract}
 }
 
 // response is a fully read HTTP response.
@@ -98,7 +106,30 @@ func (a *apiEnv) do(t testing.TB, method, path, body string, headers ...string) 
 	if err != nil {
 		t.Fatal(err)
 	}
+	a.checkContract(t, req, body, res, b)
 	return response{Status: res.StatusCode, Header: res.Header, Body: b}
+}
+
+// checkContract validates every exchange of every API test against
+// docs/openapi.yaml, so the whole API suite doubles as a contract test. The
+// response must always conform; the request must as well when the API accepted
+// it. Paths and methods the specification does not describe (generic 404/405
+// answers) are skipped.
+func (a *apiEnv) checkContract(t testing.TB, req *http.Request, reqBody string, res *http.Response, resBody []byte) {
+	t.Helper()
+	ex := apicontract.Exchange{
+		Method:         req.Method,
+		PathAndQuery:   req.URL.RequestURI(),
+		RequestHeader:  req.Header,
+		RequestBody:    []byte(reqBody),
+		Status:         res.StatusCode,
+		ResponseHeader: res.Header,
+		ResponseBody:   resBody,
+		CheckRequest:   res.StatusCode < 400,
+	}
+	if err := a.contract.Check(context.Background(), ex); err != nil && !errors.Is(err, apicontract.ErrUndocumented) {
+		t.Errorf("CONTRACT VIOLATION: %s\n%v\nresponse body: %s", ex.Describe(), err, resBody)
+	}
 }
 
 func (a *apiEnv) mustStatus(t testing.TB, r response, want int) response {

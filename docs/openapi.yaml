@@ -1,0 +1,702 @@
+openapi: 3.0.3
+info:
+  title: ledgerd API
+  version: 0.1.0
+  description: |
+    A double-entry accounting ledger.
+
+    **Money.** Amounts and balances are whole numbers of *minor units* (cents,
+    wei, ...) of arbitrary size (up to 38 digits). They are always JSON
+    **strings**, never JSON numbers: many JSON clients parse numbers as 64-bit
+    floats, which cannot represent integers above 2^53 exactly. A request that
+    sends an amount as a JSON number is rejected.
+
+    **Writes are idempotent.** Creating and reversing transactions require an
+    `Idempotency-Key` header. Repeating a request with the same key and the same
+    content returns the original result (header `Idempotent-Replayed: true`);
+    the same key with different content is rejected with `idempotency_key_reuse`.
+    A request that was rejected (for example for insufficient funds) does not use
+    up its key.
+
+    **Errors** are RFC 9457 `application/problem+json` documents with a stable
+    machine-readable `code`.
+
+    **Security.** API-key authentication is deliberately minimal and intended for
+    local use and demonstration. A production deployment needs real
+    authentication and authorisation in front of it.
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:8085
+    description: Local (docker compose)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Accounts
+  - name: Transactions
+  - name: Reconciliation
+  - name: Operations
+
+paths:
+  /healthz:
+    get:
+      tags: [Operations]
+      summary: Liveness
+      description: The process is running. Does not check dependencies.
+      operationId: healthz
+      security: []
+      responses:
+        '200':
+          description: Alive
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status: {type: string, enum: [ok]}
+        '405': {$ref: '#/components/responses/MethodNotAllowed'}
+  /readyz:
+    get:
+      tags: [Operations]
+      summary: Readiness
+      description: The service can do its job (the database answers).
+      operationId: readyz
+      security: []
+      responses:
+        '200':
+          description: Ready
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status: {type: string, enum: [ready]}
+        '503': {$ref: '#/components/responses/NotReady'}
+
+  /v1/accounts:
+    post:
+      tags: [Accounts]
+      summary: Create an account
+      operationId: createAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateAccountRequest'}
+      responses:
+        '201':
+          description: Created
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Location:
+              required: true
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+  /v1/accounts/{id}:
+    get:
+      tags: [Accounts]
+      summary: Get an account and its current balance
+      operationId: getAccount
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: The account
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Account'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+  /v1/accounts/{id}/balance:
+    get:
+      tags: [Accounts]
+      summary: Balance now, or at a past instant
+      description: |
+        Without `as_of`, the current balance. With `as_of`, the balance right
+        after the latest posting recorded at or before that instant (zero before
+        the first posting; the instant itself is included). An instant in the
+        future returns the current balance, and `as_of` is then `null` in the answer.
+      operationId: getBalance
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: as_of
+          in: query
+          required: false
+          description: RFC 3339 timestamp.
+          schema: {type: string, format: date-time}
+          example: '2026-10-01T10:00:00Z'
+      responses:
+        '200':
+          description: The balance
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BalanceResult'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+  /v1/accounts/{id}/postings:
+    get:
+      tags: [Accounts]
+      summary: Posting history of an account, newest first
+      description: |
+        Keyset pagination: pass `next_cursor` of one page as `cursor` of the next.
+        Postings added while paging never cause a posting to be skipped or repeated.
+      operationId: listPostings
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 200, default: 50}
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque; use the `next_cursor` of the previous page.
+          schema: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: A page of postings
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PostingsPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+  /v1/transactions:
+    post:
+      tags: [Transactions]
+      summary: Record a transaction
+      description: |
+        Two to 100 postings that balance (total debits equal total credits) in
+        every currency. Applied atomically: either every posting and balance
+        change is recorded, or none. Rejected with `insufficient_funds` if an
+        account that may not go negative would.
+      operationId: createTransaction
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateTransactionRequest'}
+      responses:
+        '201':
+          description: "Recorded (or, with `Idempotent-Replayed: true`, the result of the earlier identical request)"
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Location:
+              required: true
+              schema: {type: string}
+            Idempotent-Replayed:
+              required: false
+              schema: {type: string, enum: ['true']}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Transaction'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+  /v1/transactions/{id}:
+    get:
+      tags: [Transactions]
+      summary: Get a transaction with its postings
+      operationId: getTransaction
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: The transaction
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Transaction'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+  /v1/transactions/{id}/reverse:
+    post:
+      tags: [Transactions]
+      summary: Reverse a transaction
+      description: |
+        Records a new transaction with the same accounts and amounts and the
+        opposite directions. The original is never modified, and can be reversed
+        only once. The reversal obeys the same rules as any transaction, so
+        undoing a deposit that has already been spent is rejected.
+      operationId: reverseTransaction
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: "The reversal (or, with `Idempotent-Replayed: true`, the result of the earlier identical request)"
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Location:
+              required: true
+              schema: {type: string}
+            Idempotent-Replayed:
+              required: false
+              schema: {type: string, enum: ['true']}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Transaction'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+  /v1/reconciliations:
+    post:
+      tags: [Reconciliation]
+      summary: Verify the ledger against itself
+      description: |
+        Recomputes every account balance from its postings and checks that total
+        debits equal total credits in each currency. With `deep=true` it also
+        checks the `balance_after` chain of every posting. Runs on one consistent
+        snapshot, takes no locks, and never modifies anything. The HTTP status
+        says the check ran; `ok` in the body says whether the ledger is consistent.
+      operationId: reconcile
+      parameters:
+        - name: deep
+          in: query
+          required: false
+          schema: {type: string, enum: ['true', 'false'], default: 'false'}
+      responses:
+        '200':
+          description: The report
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReconciliationReport'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "The API key, sent as `Authorization: Bearer <key>`."
+
+  headers:
+    RequestId:
+      required: true
+      description: Identifies the request in logs. The client's `X-Request-Id` is echoed if well-formed, otherwise one is generated.
+      schema: {type: string, pattern: '^[A-Za-z0-9._-]{1,64}$'}
+
+  parameters:
+    AccountId:
+      name: id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUIDInput'}
+    TransactionId:
+      name: id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUIDInput'}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Chosen by the client, unique per logical operation (a UUID is a good
+        choice). 1 to 255 visible ASCII characters.
+      schema: {type: string, minLength: 1, maxLength: 255, pattern: '^[\x21-\x7E]+$'}
+
+  schemas:
+    UUID:
+      type: string
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      example: 3f2b8a52-2f8e-4c61-9a4e-0d6f4f0e7c11
+    UUIDInput:
+      type: string
+      description: A UUID in its canonical 36-character form (letter case is ignored).
+      pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+    Timestamp:
+      type: string
+      description: RFC 3339, UTC, microsecond precision.
+      pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$'
+      example: '2026-10-13T15:04:05.123456Z'
+    Currency:
+      type: string
+      description: An asset code, 2 to 10 uppercase letters or digits.
+      pattern: '^[A-Z0-9]{2,10}$'
+      example: USD
+    Amount:
+      type: string
+      description: |
+        A positive whole number of minor units, as a string of decimal digits
+        without sign, decimal point or leading zeros. At most 10^30.
+      pattern: '^[1-9][0-9]{0,30}$'
+      example: '10000'
+    Balance:
+      type: string
+      description: A whole number of minor units, as a string. Negative only for accounts that allow it.
+      pattern: '^-?[0-9]{1,38}$'
+      example: '12345'
+    AccountType:
+      type: string
+      enum: [ASSET, LIABILITY, EQUITY, INCOME, EXPENSE]
+    Side:
+      type: string
+      enum: [DEBIT, CREDIT]
+
+    CreateAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [code, currency, type, normal_balance]
+      properties:
+        code:
+          type: string
+          description: Unique, 1 to 64 characters of letters, digits, `.`, `_`, `:` or `-`, starting with a letter or digit.
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$'
+          example: user:42.wallet
+        currency: {$ref: '#/components/schemas/Currency'}
+        type: {$ref: '#/components/schemas/AccountType'}
+        normal_balance:
+          allOf: [{$ref: '#/components/schemas/Side'}]
+          description: The side on which the balance increases (DEBIT for assets and expenses, CREDIT for liabilities, equity and income).
+        allow_negative:
+          type: boolean
+          default: false
+          description: Whether the balance may go below zero.
+
+    Account:
+      type: object
+      additionalProperties: false
+      required: [id, code, currency, type, normal_balance, allow_negative, balance, last_posting_at, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        code: {type: string}
+        currency: {$ref: '#/components/schemas/Currency'}
+        type: {$ref: '#/components/schemas/AccountType'}
+        normal_balance: {$ref: '#/components/schemas/Side'}
+        allow_negative: {type: boolean}
+        balance: {$ref: '#/components/schemas/Balance'}
+        last_posting_at:
+          allOf: [{$ref: '#/components/schemas/Timestamp'}]
+          nullable: true
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+
+    PostingRequest:
+      type: object
+      additionalProperties: false
+      required: [account_id, direction, amount, currency]
+      properties:
+        account_id: {$ref: '#/components/schemas/UUIDInput'}
+        direction: {$ref: '#/components/schemas/Side'}
+        amount: {$ref: '#/components/schemas/Amount'}
+        currency: {$ref: '#/components/schemas/Currency'}
+
+    CreateTransactionRequest:
+      type: object
+      additionalProperties: false
+      required: [postings]
+      properties:
+        description: {type: string, maxLength: 500}
+        postings:
+          type: array
+          minItems: 2
+          maxItems: 100
+          items: {$ref: '#/components/schemas/PostingRequest'}
+      example:
+        description: Deposit 100.00
+        postings:
+          - {account_id: 3f2b8a52-2f8e-4c61-9a4e-0d6f4f0e7c11, direction: DEBIT, amount: '10000', currency: USD}
+          - {account_id: 9a1d1c7e-5b52-4e5e-8f1c-2a7c8d9e0f11, direction: CREDIT, amount: '10000', currency: USD}
+
+    Posting:
+      type: object
+      additionalProperties: false
+      required: [id, transaction_id, account_id, direction, amount, currency, balance_after, recorded_at]
+      properties:
+        id: {type: integer, format: int64, description: Increases along an account's history.}
+        transaction_id: {$ref: '#/components/schemas/UUID'}
+        account_id: {$ref: '#/components/schemas/UUID'}
+        direction: {$ref: '#/components/schemas/Side'}
+        amount: {$ref: '#/components/schemas/Amount'}
+        currency: {$ref: '#/components/schemas/Currency'}
+        balance_after:
+          allOf: [{$ref: '#/components/schemas/Balance'}]
+          description: |
+            The account's balance right after this posting. If an account has several postings in one
+            transaction, intermediate values can be transient (for example negative); only the last one
+            per account is a committed state.
+        recorded_at: {$ref: '#/components/schemas/Timestamp'}
+
+    Transaction:
+      type: object
+      additionalProperties: false
+      required: [id, description, reverses_id, created_at, postings]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        description: {type: string}
+        reverses_id:
+          allOf: [{$ref: '#/components/schemas/UUID'}]
+          nullable: true
+          description: Set when this transaction reverses another.
+        created_at:
+          allOf: [{$ref: '#/components/schemas/Timestamp'}]
+          description: Assigned by the server; shared by all postings of the transaction.
+        postings:
+          type: array
+          items: {$ref: '#/components/schemas/Posting'}
+
+    BalanceResult:
+      type: object
+      additionalProperties: false
+      required: [account_id, currency, balance, last_posting_at, as_of]
+      properties:
+        account_id: {$ref: '#/components/schemas/UUID'}
+        currency: {$ref: '#/components/schemas/Currency'}
+        balance: {$ref: '#/components/schemas/Balance'}
+        last_posting_at:
+          allOf: [{$ref: '#/components/schemas/Timestamp'}]
+          nullable: true
+          description: When the posting that produced this balance was recorded; null if there is none.
+        as_of:
+          allOf: [{$ref: '#/components/schemas/Timestamp'}]
+          nullable: true
+          description: The instant that was asked for; null when the current balance is returned.
+
+    PostingsPage:
+      type: object
+      additionalProperties: false
+      required: [postings, next_cursor]
+      properties:
+        postings:
+          type: array
+          items: {$ref: '#/components/schemas/Posting'}
+        next_cursor:
+          type: string
+          nullable: true
+          description: Null on the last page.
+
+    ReconciliationReport:
+      type: object
+      additionalProperties: false
+      required: [started_at, deep, ok, accounts_checked, mismatches, currencies, chain_breaks]
+      properties:
+        started_at: {$ref: '#/components/schemas/Timestamp'}
+        deep: {type: boolean}
+        ok: {type: boolean, description: True when there is nothing to report in any section.}
+        accounts_checked: {type: integer, format: int64, minimum: 0}
+        mismatches:
+          type: array
+          description: Accounts whose stored balance differs from the sum of their postings.
+          items:
+            type: object
+            additionalProperties: false
+            required: [account_id, code, currency, stored, expected]
+            properties:
+              account_id: {$ref: '#/components/schemas/UUID'}
+              code: {type: string}
+              currency: {$ref: '#/components/schemas/Currency'}
+              stored: {$ref: '#/components/schemas/Balance'}
+              expected: {$ref: '#/components/schemas/Balance'}
+        currencies:
+          type: array
+          description: Total debits and credits per currency; they must be equal.
+          items:
+            type: object
+            additionalProperties: false
+            required: [currency, debits, credits, balanced]
+            properties:
+              currency: {$ref: '#/components/schemas/Currency'}
+              debits: {$ref: '#/components/schemas/Balance'}
+              credits: {$ref: '#/components/schemas/Balance'}
+              balanced: {type: boolean}
+        chain_breaks:
+          type: array
+          description: Only with `deep=true`. Postings whose balance_after does not follow from the previous posting of the account.
+          items:
+            type: object
+            additionalProperties: false
+            required: [posting_id, account_id, recorded, expected]
+            properties:
+              posting_id: {type: integer, format: int64}
+              account_id: {$ref: '#/components/schemas/UUID'}
+              recorded: {$ref: '#/components/schemas/Balance'}
+              expected: {$ref: '#/components/schemas/Balance'}
+
+    ErrorCode:
+      type: string
+      description: Stable, machine-readable. Clients should branch on this, not on `title` or `detail`.
+      enum:
+        - already_reversed
+        - account_code_exists
+        - idempotency_key_reuse
+        - insufficient_funds
+        - internal_error
+        - malformed_request
+        - method_not_allowed
+        - not_found
+        - not_ready
+        - payload_too_large
+        - temporarily_unavailable
+        - unauthorized
+        - unbalanced_transaction
+        - unsupported_media_type
+        - validation_error
+
+    Problem:
+      type: object
+      description: An RFC 9457 problem details document.
+      additionalProperties: false
+      required: [type, title, status, code]
+      properties:
+        type: {type: string, example: 'urn:ledgerd:error:insufficient_funds'}
+        title: {type: string}
+        status: {type: integer, minimum: 400, maximum: 599}
+        code: {$ref: '#/components/schemas/ErrorCode'}
+        detail: {type: string}
+        instance: {type: string}
+        request_id: {type: string}
+        errors:
+          type: array
+          description: For `validation_error`, every invalid field.
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, message]
+            properties:
+              field: {type: string, example: 'postings[0].amount'}
+              message: {type: string}
+
+  responses:
+    BadRequest:
+      description: Malformed request (bad JSON, unknown field, malformed id, unknown query parameter).
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unauthorized:
+      description: Missing or invalid API key.
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/RequestId'}
+        WWW-Authenticate: {required: true, schema: {type: string}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    NotFound:
+      description: The account or transaction does not exist.
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    MethodNotAllowed:
+      description: Method not supported for this path.
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/RequestId'}
+        Allow: {required: true, schema: {type: string}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Conflict:
+      description: '`account_code_exists` or `already_reversed`.'
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    PayloadTooLarge:
+      description: The request body exceeds the maximum size.
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    UnsupportedMediaType:
+      description: The request body must be `application/json`.
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unprocessable:
+      description: |
+        The request is well-formed but cannot be carried out: `validation_error`
+        (see `errors` for each field), `unbalanced_transaction`, `insufficient_funds`
+        or `idempotency_key_reuse`. Nothing was changed.
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unavailable:
+      description: Busy or timed out (`temporarily_unavailable`). Nothing was changed; retry after a moment.
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/RequestId'}
+        Retry-After: {required: true, schema: {type: string}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    NotReady:
+      description: A dependency is not available (`not_ready`).
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/RequestId'}
+        Retry-After: {required: true, schema: {type: string}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    InternalError:
+      description: Unexpected failure. Details are in the server log under the `request_id`.
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}

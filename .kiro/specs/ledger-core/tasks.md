@@ -125,7 +125,7 @@ Conventions:
   - Verify: readiness returns 503 when the database is down; shutdown test finishes an in-flight request.
   - _Requirements: R12.1, R12.2, R12.5, R15.1_
 
-- [ ] 21. OpenAPI specification and contract tests
+- [x] 21. OpenAPI specification and contract tests
   - Write `docs/openapi.yaml` (amount fields as strings with a pattern; problem+json schemas); validate real responses against it in tests with `kin-openapi`.
   - Verify: CI fails if a handler response deviates from the spec.
   - _Requirements: R10.6, R13.8_
