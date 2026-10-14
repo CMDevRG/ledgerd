@@ -143,8 +143,8 @@ Conventions:
 
 ## Phase 8 — Packaging and evidence
 
-- [ ] 24. Docker image and Compose stack
-  - Multi-stage `Dockerfile` (pinned base images, non-root user, static binary); `docker-compose.yml` with `postgres` (init script), `migrate` (one-shot), and `api` (waits for `migrate`); ports 8085 and 55432 overridable; health checks.
+- [x] 24. Docker image and Compose stack
+  - Multi-stage `Dockerfile` (pinned base images, non-root user, static binary); `docker-compose.yml` with `postgres` (init script), `migrate` (one-shot), and `api` (waits for `migrate`); ports 8085 and 15432 overridable; health checks.
   - Verify: `docker compose up` from a clean clone reaches healthy; `curl` smoke test of create account → transaction → balance.
   - _Requirements: R15.1, R15.2, R15.4_
 

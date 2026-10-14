@@ -1,0 +1,12 @@
+# Keep the build context small and free of local state and secrets.
+.git
+.kiro
+.github
+.idea
+bin
+bench/results
+.env
+.env.*
+!.env.example
+*.test
+*.out

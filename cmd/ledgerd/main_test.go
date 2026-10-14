@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -90,5 +92,45 @@ func TestRun_ServeFailsCleanlyWhenThePortIsTaken(t *testing.T) {
 	}
 	if strings.Contains(stderr, "pw@") {
 		t.Errorf("credentials in output: %q", stderr)
+	}
+}
+
+func TestRun_Healthcheck(t *testing.T) {
+	status := http.StatusOK
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/readyz" {
+			t.Errorf("probed %s, want /readyz", r.URL.Path)
+		}
+		w.WriteHeader(status)
+	}))
+	defer srv.Close()
+	addr := strings.TrimPrefix(srv.URL, "http://")
+	env := map[string]string{"LEDGERD_ADDR": addr}
+
+	if code, _, stderr := runCmd([]string{"healthcheck"}, env); code != exitOK {
+		t.Errorf("a ready server: code=%d stderr=%q", code, stderr)
+	}
+
+	status = http.StatusServiceUnavailable
+	if code, _, stderr := runCmd([]string{"healthcheck"}, env); code != exitFailure || !strings.Contains(stderr, "not ready (HTTP 503)") {
+		t.Errorf("a server that is not ready: code=%d stderr=%q", code, stderr)
+	}
+
+	// Nothing is listening there any more.
+	srv.Close()
+	if code, _, _ := runCmd([]string{"healthcheck"}, env); code != exitFailure {
+		t.Errorf("no server: code=%d", code)
+	}
+
+	if code, _, _ := runCmd([]string{"healthcheck"}, map[string]string{"LEDGERD_ADDR": "not-an-address"}); code != exitUsage {
+		t.Errorf("a bad address: code=%d", code)
+	}
+}
+
+func TestVersion_PrefersBuildTimeValues(t *testing.T) {
+	buildVersion, buildCommit = "1.2.3", "0123456789abcdef0123"
+	defer func() { buildVersion, buildCommit = "", "" }()
+	if got := version(); got != "ledgerd 1.2.3 (0123456789ab)" {
+		t.Errorf("version() = %q", got)
 	}
 }

@@ -3,6 +3,7 @@
 //	ledgerd serve     run the HTTP API
 //	ledgerd migrate   apply database migrations (uses the owner role)
 //	ledgerd version   print version information
+//	ledgerd healthcheck   probe /readyz of a running instance (for container health checks)
 package main
 
 import (
@@ -11,10 +12,12 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime/debug"
 	"syscall"
+	"time"
 
 	"github.com/radadev/ledgerd/internal/app"
 	"github.com/radadev/ledgerd/internal/config"
@@ -34,6 +37,7 @@ Commands:
   serve     Run the HTTP API
   migrate   Apply database schema migrations
   version   Print version information
+  healthcheck   Probe /readyz of a running instance (used by container health checks)
 
 Configuration is read from environment variables (see README).
 `
@@ -55,6 +59,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, getenv co
 		return serve(ctx, stderr, getenv)
 	case "migrate":
 		return runMigrate(ctx, stderr, getenv)
+	case "healthcheck":
+		return healthcheck(ctx, stderr, getenv)
 	case "version":
 		say(stdout, "%s\n", version())
 		return exitOK
@@ -110,9 +116,65 @@ func runMigrate(ctx context.Context, stderr io.Writer, getenv config.Getenv) int
 	return exitOK
 }
 
+// healthcheck asks a running instance whether it is ready and exits 0 if so.
+// Container images such as distroless have no shell or curl, so the binary
+// carries its own probe. It targets the address in LEDGERD_ADDR on the loopback
+// interface.
+func healthcheck(ctx context.Context, stderr io.Writer, getenv config.Getenv) int {
+	addr := getenv(config.EnvAddr)
+	if addr == "" {
+		addr = config.DefaultAddr
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		say(stderr, "healthcheck: invalid %s: %v\n", config.EnvAddr, err)
+		return exitUsage
+	}
+	if ip := net.ParseIP(host); host == "" || (ip != nil && ip.IsUnspecified()) {
+		host = "127.0.0.1" // listening on all interfaces; probe the loopback one
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+net.JoinHostPort(host, port)+"/readyz", nil)
+	if err != nil {
+		say(stderr, "healthcheck: %v\n", err)
+		return exitFailure
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		say(stderr, "healthcheck: %v\n", err)
+		return exitFailure
+	}
+	defer res.Body.Close() //nolint:errcheck // nothing useful to do on a failed close
+	if res.StatusCode != http.StatusOK {
+		say(stderr, "healthcheck: not ready (HTTP %d)\n", res.StatusCode)
+		return exitFailure
+	}
+	return exitOK
+}
+
+// Set at build time with -ldflags "-X main.buildVersion=... -X main.buildCommit=...".
+// They matter for container builds, where the git directory is not available
+// for the Go toolchain to read.
+var (
+	buildVersion string
+	buildCommit  string
+)
+
 // version reports the module version and, when built from a git checkout, the
 // commit it was built from.
 func version() string {
+	if buildVersion != "" {
+		commit := buildCommit
+		if len(commit) > 12 {
+			commit = commit[:12]
+		}
+		if commit != "" {
+			return fmt.Sprintf("ledgerd %s (%s)", buildVersion, commit)
+		}
+		return "ledgerd " + buildVersion
+	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "ledgerd (unknown build)"

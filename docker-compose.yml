@@ -1,0 +1,67 @@
+# ledgerd: PostgreSQL + one-shot migration + API.
+#
+#   make up        creates .env with random secrets on first use, then starts everything
+#   make down      stops it (data is kept in the `pgdata` volume)
+#   make smoke     runs a short end-to-end check against the running stack
+#
+# Startup order: postgres (healthy) -> migrate (runs to completion) -> api.
+name: ledgerd
+
+services:
+  postgres:
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?run `make env` or copy .env.example to .env}
+      POSTGRES_DB: ledgerd
+      # Read by deploy/initdb/01-roles.sh, which creates the two application roles.
+      LEDGERD_OWNER_PASSWORD: ${LEDGERD_OWNER_PASSWORD:?run `make env` or copy .env.example to .env}
+      LEDGERD_APP_PASSWORD: ${LEDGERD_APP_PASSWORD:?run `make env` or copy .env.example to .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:${LEDGERD_POSTGRES_PORT:-15432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ledgerd"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      args:
+        VERSION: ${LEDGERD_VERSION:-dev}
+        COMMIT: ${LEDGERD_COMMIT:-unknown}
+    image: ledgerd:local
+    command: ["migrate"]
+    environment:
+      LEDGERD_MIGRATE_DATABASE_URL: postgres://ledgerd_owner:${LEDGERD_OWNER_PASSWORD}@postgres:5432/ledgerd?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: ledgerd:local
+    command: ["serve"]
+    environment:
+      LEDGERD_ADDR: ":8085"
+      LEDGERD_DATABASE_URL: postgres://ledgerd_app:${LEDGERD_APP_PASSWORD}@postgres:5432/ledgerd?sslmode=disable
+      LEDGERD_API_KEY: ${LEDGERD_API_KEY:?run `make env` or copy .env.example to .env}
+    ports:
+      - "127.0.0.1:${LEDGERD_PORT:-8085}:8085"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    stop_grace_period: 20s   # a little longer than the 15s graceful-shutdown window
+
+volumes:
+  pgdata:

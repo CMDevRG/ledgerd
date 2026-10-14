@@ -106,7 +106,15 @@ func Serve(ctx context.Context, cfg config.ServeConfig, log *slog.Logger, ln net
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
-	log.Info("ledgerd listening", slog.String("addr", ln.Addr().String()), slog.Any("config", cfg))
+	// Secrets are Secret values and print as [REDACTED]; durations are logged as durations.
+	log.Info("ledgerd listening",
+		slog.String("addr", ln.Addr().String()),
+		slog.Any("database_url", cfg.DatabaseURL),
+		slog.Any("api_key", cfg.APIKey),
+		slog.Duration("idempotency_ttl", cfg.IdempotencyTTL),
+		slog.Int64("max_body_bytes", cfg.MaxBodyBytes),
+		slog.Int("db_max_conns", int(cfg.DBMaxConns)),
+		slog.String("log_level", cfg.LogLevel.String()))
 
 	select {
 	case err := <-serveErr: // the listener failed before any shutdown was requested

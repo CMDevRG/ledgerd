@@ -284,7 +284,7 @@ Exact module versions are pinned in `go.mod`/`go.sum` when the module is created
 
 ## 8. Deployment (local)
 
-`docker compose up` starts three services: `postgres` (init script creates `ledgerd_owner` and `ledgerd_app`), `migrate` (runs `ledgerd migrate` as owner, exits), and `api` (starts after `migrate` completes successfully; connects as `ledgerd_app`). Host ports: API `8085`, PostgreSQL `55432` — both overridable, chosen to avoid the 80/3306/6379/8080 ports used by other local stacks.
+`docker compose up` starts three services: `postgres` (init script creates `ledgerd_owner` and `ledgerd_app`), `migrate` (runs `ledgerd migrate` as owner, exits), and `api` (starts after `migrate` completes successfully; connects as `ledgerd_app`). Host ports: API `8085`, PostgreSQL `15432` — both overridable, chosen to avoid the 80/3306/6379/8080 ports used by other local stacks. Both are bound to `127.0.0.1` only, and below the ephemeral range (49152+), where Windows/Hyper-V may reserve ports at random (a first attempt with 55432 failed on exactly that).
 
 ## 9. Test strategy and traceability
 

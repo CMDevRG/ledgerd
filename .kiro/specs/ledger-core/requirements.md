@@ -214,7 +214,7 @@ Out of scope: currency conversion (FX), user interface, user/role management, mu
 #### Acceptance Criteria
 
 1. WHEN a user runs `docker compose up` THEN the system SHALL start PostgreSQL and the API, apply database migrations, and report healthy.
-2. The default host ports SHALL be 8085 for the API and 55432 for PostgreSQL, configurable by environment variables, so that the stack does not collide with other local projects.
+2. The default host ports SHALL be 8085 for the API and 15432 for PostgreSQL, configurable by environment variables, so that the stack does not collide with other local projects.
 3. The repository SHALL provide a Makefile (or equivalent) with targets for build, test, race test, lint, run, and benchmark.
 4. All container images and tool versions used SHALL be pinned.
 5. The README SHALL be written in English and include: purpose, architecture diagram, quick start, API examples, design decisions and trade-offs, test strategy, benchmark results, limitations, and the Spec-Driven Development workflow used (links to these spec files).
