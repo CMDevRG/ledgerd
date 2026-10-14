@@ -1,16 +1,16 @@
 # Implementation Plan — account listing and release images (ledgerd 0.2.0)
 
-- [ ] 33. Listing: query, migration, store
+- [x] 33. Listing: query, migration, store
   - Migration `00004` with the index; `ListAccounts` query in sqlc; store wrapper returning domain accounts; cursor encode/decode.
   - Verify: integration tests for ordering (including equal timestamps), paging, filters, `_`/`%` prefixes, and `EXPLAIN`.
   - _Requirements: R16.1–R16.5, R16.7, R16.9_
 
-- [ ] 34. Listing: service and API
+- [x] 34. Listing: service and API
   - Service validation and `AccountPage`; handler with strict query parameters; `AccountsPage` DTO.
   - Verify: handler tests with the fake ledger; end-to-end API tests; invalid-parameter cases.
   - _Requirements: R16.1–R16.8_
 
-- [ ] 35. Listing: OpenAPI, contract tests, stability test
+- [x] 35. Listing: OpenAPI, contract tests, stability test
   - Operation and schemas in `docs/openapi.yaml`; route/contract tests pass; a concurrency test creates accounts while a client pages.
   - _Requirements: R16.3, R16.8_
 

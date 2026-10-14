@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/CMDevRG/ledgerd/internal/ledger"
 	"github.com/CMDevRG/ledgerd/internal/store/db"
@@ -96,4 +98,44 @@ func LockAccounts(ctx context.Context, q *db.Queries, ids []uuid.UUID) (map[uuid
 		}
 	}
 	return locked, nil
+}
+
+// AccountFilter narrows ListAccounts. An empty field means "do not filter".
+type AccountFilter struct {
+	// CodePrefix keeps accounts whose code starts with it (a plain prefix: '_' and '%' are ordinary characters).
+	CodePrefix string
+	// Currency keeps accounts of this asset code.
+	Currency string
+}
+
+// AccountCursor is the position after which the next page of ListAccounts starts:
+// the (created_at, id) of the last account already returned.
+type AccountCursor struct {
+	CreatedAt time.Time
+	ID        uuid.UUID
+}
+
+// ListAccounts returns up to limit accounts, newest first (by creation time, then
+// id), optionally filtered and starting after a cursor.
+func (s *Store) ListAccounts(ctx context.Context, f AccountFilter, after *AccountCursor, limit int) ([]ledger.Account, error) {
+	params := db.ListAccountsParams{PageSize: int32(limit)} //nolint:gosec // limit is validated by the caller (at most 201)
+	if f.CodePrefix != "" {
+		params.CodePrefix = pgtype.Text{String: f.CodePrefix, Valid: true}
+	}
+	if f.Currency != "" {
+		params.Currency = pgtype.Text{String: f.Currency, Valid: true}
+	}
+	if after != nil {
+		params.AfterCreatedAt = &after.CreatedAt
+		params.AfterID = &after.ID
+	}
+	rows, err := s.Queries().ListAccounts(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list accounts: %w", err)
+	}
+	out := make([]ledger.Account, len(rows))
+	for i, r := range rows {
+		out[i] = accountToDomain(r)
+	}
+	return out, nil
 }

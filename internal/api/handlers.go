@@ -20,6 +20,7 @@ import (
 type Ledger interface {
 	CreateAccount(ctx context.Context, n ledger.NewAccount) (ledger.Account, error)
 	GetAccount(ctx context.Context, id uuid.UUID) (ledger.Account, error)
+	ListAccounts(ctx context.Context, p service.ListAccountsParams) (service.AccountPage, error)
 	Balance(ctx context.Context, id uuid.UUID, asOf *time.Time) (service.Balance, error)
 	ListPostings(ctx context.Context, id uuid.UUID, cursor string, limit int) (service.PostingPage, error)
 	CreateTransaction(ctx context.Context, idem service.Idempotency, req ledger.TransactionRequest) (service.TransactionResult, error)
@@ -54,6 +55,7 @@ func (h *handlers) routes() []route {
 	return []route{
 		{"GET /healthz", h.healthz},
 		{"GET /readyz", h.readyz},
+		{"GET /v1/accounts", h.listAccounts},
 		{"POST /v1/accounts", h.createAccount},
 		{"GET /v1/accounts/{id}", h.getAccount},
 		{"GET /v1/accounts/{id}/balance", h.getBalance},
@@ -119,6 +121,45 @@ func (h *handlers) createAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Location", "/v1/accounts/"+acct.ID.String())
 	writeJSON(w, r, http.StatusCreated, accountDTO(acct))
+}
+
+func (h *handlers) listAccounts(w http.ResponseWriter, r *http.Request) {
+	q, err := query(r, "limit", "cursor", "code_prefix", "currency")
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	var p service.ListAccountsParams
+	if q.has("limit") {
+		n, err := strconv.Atoi(q.get("limit"))
+		if err != nil || n < 1 || n > service.MaxPageSize {
+			fail(w, r, fieldError("limit", "must be an integer between 1 and "+strconv.Itoa(service.MaxPageSize)))
+			return
+		}
+		p.Limit = n
+	}
+	if q.has("cursor") {
+		if q.get("cursor") == "" {
+			fail(w, r, fieldError("cursor", "must not be empty"))
+			return
+		}
+		p.Cursor = q.get("cursor")
+	}
+	// A given-but-empty filter is passed on as such, and the service rejects it.
+	if q.has("code_prefix") {
+		v := q.get("code_prefix")
+		p.CodePrefix = &v
+	}
+	if q.has("currency") {
+		v := q.get("currency")
+		p.Currency = &v
+	}
+	page, err := h.d.Ledger.ListAccounts(r.Context(), p)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, accountsPageDTO(page))
 }
 
 func (h *handlers) getAccount(w http.ResponseWriter, r *http.Request) {

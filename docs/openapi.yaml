@@ -84,6 +84,46 @@ paths:
         '503': {$ref: '#/components/responses/NotReady'}
 
   /v1/accounts:
+    get:
+      tags: [Accounts]
+      summary: List accounts, newest first
+      description: |
+        Keyset pagination on creation time and id, which never change for an account:
+        accounts created while paging never cause one to be skipped or repeated.
+        The filters combine with AND.
+      operationId: listAccounts
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 200, default: 50}
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque; use the `next_cursor` of the previous page.
+          schema: {type: string, minLength: 1}
+        - name: code_prefix
+          in: query
+          required: false
+          description: Only accounts whose code starts with this text. A plain prefix, case-sensitive; `_` is an ordinary character.
+          schema: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$'}
+        - name: currency
+          in: query
+          required: false
+          schema: {$ref: '#/components/schemas/Currency'}
+      responses:
+        '200':
+          description: A page of accounts
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccountsPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
     post:
       tags: [Accounts]
       summary: Create an account
@@ -436,6 +476,19 @@ components:
           allOf: [{$ref: '#/components/schemas/Timestamp'}]
           nullable: true
         created_at: {$ref: '#/components/schemas/Timestamp'}
+
+    AccountsPage:
+      type: object
+      additionalProperties: false
+      required: [accounts, next_cursor]
+      properties:
+        accounts:
+          type: array
+          items: {$ref: '#/components/schemas/Account'}
+        next_cursor:
+          type: string
+          nullable: true
+          description: Null on the last page.
 
     PostingRequest:
       type: object

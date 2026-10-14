@@ -104,6 +104,7 @@ tests validate every request and response of the API suite against it.
 
 | Method and path | Purpose |
 |---|---|
+| `GET /v1/accounts?limit=&cursor=&code_prefix=&currency=` | List accounts, newest first, keyset-paginated |
 | `POST /v1/accounts` | Create an account |
 | `GET /v1/accounts/{id}` | Account with its current balance |
 | `GET /v1/accounts/{id}/balance?as_of=` | Current balance, or the balance at a past instant |

@@ -33,6 +33,7 @@ var errNotWired = errors.New("fake ledger: method not wired in this test")
 type fakeLedger struct {
 	createAccount     func(ledger.NewAccount) (ledger.Account, error)
 	getAccount        func(uuid.UUID) (ledger.Account, error)
+	listAccounts      func(service.ListAccountsParams) (service.AccountPage, error)
 	balance           func(uuid.UUID, *time.Time) (service.Balance, error)
 	listPostings      func(uuid.UUID, string, int) (service.PostingPage, error)
 	createTransaction func(service.Idempotency, ledger.TransactionRequest) (service.TransactionResult, error)
@@ -51,6 +52,12 @@ func (f *fakeLedger) GetAccount(_ context.Context, id uuid.UUID) (ledger.Account
 		return ledger.Account{}, errNotWired
 	}
 	return f.getAccount(id)
+}
+func (f *fakeLedger) ListAccounts(_ context.Context, p service.ListAccountsParams) (service.AccountPage, error) {
+	if f.listAccounts == nil {
+		return service.AccountPage{}, errNotWired
+	}
+	return f.listAccounts(p)
 }
 func (f *fakeLedger) Balance(_ context.Context, id uuid.UUID, asOf *time.Time) (service.Balance, error) {
 	if f.balance == nil {
@@ -219,6 +226,52 @@ func TestGetAccount(t *testing.T) {
 	// Upper case is the same UUID.
 	if rec := call(h, "GET", "/v1/accounts/"+strings.ToUpper(idA.String()), ""); rec.Code != 200 {
 		t.Errorf("upper-case UUID: %d", rec.Code)
+	}
+}
+
+func TestListAccounts(t *testing.T) {
+	var got service.ListAccountsParams
+	h := newAPI(t, &fakeLedger{listAccounts: func(p service.ListAccountsParams) (service.AccountPage, error) {
+		got = p
+		if p.Cursor == "empty" {
+			return service.AccountPage{Accounts: []ledger.Account{}}, nil
+		}
+		return service.AccountPage{Accounts: []ledger.Account{sampleAccount()}, NextCursor: "next-page"}, nil
+	}}, nil)
+
+	rec := call(h, "GET", "/v1/accounts", "")
+	if rec.Code != 200 || got.Limit != 0 || got.Cursor != "" || got.CodePrefix != nil || got.Currency != nil {
+		t.Fatalf("defaults: %d %s %+v", rec.Code, rec.Body, got)
+	}
+	for _, want := range []string{`"accounts":[{"id":"` + idA.String() + `"`, `"next_cursor":"next-page"`, `"balance":"12345"`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("response lacks %s: %s", want, rec.Body)
+		}
+	}
+
+	call(h, "GET", "/v1/accounts?limit=200&cursor=abc&code_prefix=lab-&currency=USD", "")
+	if got.Limit != 200 || got.Cursor != "abc" || got.CodePrefix == nil || *got.CodePrefix != "lab-" || got.Currency == nil || *got.Currency != "USD" {
+		t.Errorf("parameters not passed on: %+v", got)
+	}
+
+	rec = call(h, "GET", "/v1/accounts?cursor=empty", "")
+	if !strings.Contains(rec.Body.String(), `"accounts":[]`) || !strings.Contains(rec.Body.String(), `"next_cursor":null`) {
+		t.Errorf("an empty page must be [] and a null cursor: %s", rec.Body)
+	}
+
+	for _, bad := range []string{"limit=0", "limit=201", "limit=-1", "limit=x", "limit=", "cursor="} {
+		p := mustProblem(t, call(h, "GET", "/v1/accounts?"+bad, ""), 422, CodeValidationError)
+		if len(p.Errors) != 1 {
+			t.Errorf("%s: %+v", bad, p.Errors)
+		}
+	}
+	mustProblem(t, call(h, "GET", "/v1/accounts?sort=name", ""), 400, CodeMalformedRequest)
+	mustProblem(t, call(h, "GET", "/v1/accounts?currency=USD&currency=EUR", ""), 400, CodeMalformedRequest)
+
+	// An empty filter is handed to the service as an empty string, which it rejects.
+	call(h, "GET", "/v1/accounts?code_prefix=", "")
+	if got.CodePrefix == nil || *got.CodePrefix != "" {
+		t.Errorf("an empty code_prefix must reach the service as an empty string: %+v", got.CodePrefix)
 	}
 }
 

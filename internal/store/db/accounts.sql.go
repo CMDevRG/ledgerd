@@ -11,6 +11,7 @@ import (
 
 	pgnum "github.com/CMDevRG/ledgerd/internal/pgnum"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createAccount = `-- name: CreateAccount :one
@@ -69,6 +70,64 @@ func (q *Queries) GetAccount(ctx context.Context, id uuid.UUID) (Account, error)
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const listAccounts = `-- name: ListAccounts :many
+SELECT id, code, currency, type, normal_balance, allow_negative, balance, last_posting_at, created_at FROM accounts
+WHERE ($1::text IS NULL OR starts_with(code, $1::text))
+  AND ($2::text IS NULL OR currency = $2::text)
+  AND ($3::timestamptz IS NULL
+       OR (created_at, id) < ($3::timestamptz, $4::uuid))
+ORDER BY created_at DESC, id DESC
+LIMIT $5
+`
+
+type ListAccountsParams struct {
+	CodePrefix     pgtype.Text
+	Currency       pgtype.Text
+	AfterCreatedAt *time.Time
+	AfterID        *uuid.UUID
+	PageSize       int32
+}
+
+// ListAccounts returns accounts newest first. The filters are optional; the cursor
+// (the created_at and id of the last account already seen) selects the next page.
+// starts_with is a plain string function, so '_' and '%' in a prefix are ordinary
+// characters (LIKE would treat '_' as "any character", and '_' is legal in a code).
+func (q *Queries) ListAccounts(ctx context.Context, arg ListAccountsParams) ([]Account, error) {
+	rows, err := q.db.Query(ctx, listAccounts,
+		arg.CodePrefix,
+		arg.Currency,
+		arg.AfterCreatedAt,
+		arg.AfterID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Account{}
+	for rows.Next() {
+		var i Account
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Currency,
+			&i.Type,
+			&i.NormalBalance,
+			&i.AllowNegative,
+			&i.Balance,
+			&i.LastPostingAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const lockAccounts = `-- name: LockAccounts :many

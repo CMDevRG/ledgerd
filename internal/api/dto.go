@@ -178,6 +178,22 @@ func accountDTO(a ledger.Account) accountResponse {
 	}
 }
 
+type accountsPageResponse struct {
+	Accounts   []accountResponse `json:"accounts"`
+	NextCursor *string           `json:"next_cursor"`
+}
+
+func accountsPageDTO(p service.AccountPage) accountsPageResponse {
+	out := accountsPageResponse{Accounts: make([]accountResponse, len(p.Accounts))}
+	for i, a := range p.Accounts {
+		out.Accounts[i] = accountDTO(a)
+	}
+	if p.NextCursor != "" {
+		out.NextCursor = &p.NextCursor
+	}
+	return out
+}
+
 type postingResponse struct {
 	ID            int64  `json:"id"`
 	TransactionID string `json:"transaction_id"`

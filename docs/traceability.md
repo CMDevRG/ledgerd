@@ -170,6 +170,20 @@ Criteria that are not (or not only) verified by an automated test say so.
 | 15.5 README contents | `README.md` |
 | 15.6 no employer code or data | **Not automated:** a one-off search of the whole tree and git history was done before release (a permanent check would have to name third parties inside the repository). The code was written for this project; the schema is original. |
 
+## R16. Account listing (version 0.2.0; requirements in `.kiro/specs/account-listing`)
+
+| Criterion | Verified by |
+|---|---|
+| 16.1 newest first, same shape as an account, with the balance | `TestListAccounts_NewestFirstWithTheirBalances`, `TestAPI_ListAccounts` (including "a balance appears in the list"), `TestListAccounts` |
+| 16.2 `limit` (default 50, 1 to 200) and `next_cursor` (null on the last page) | `TestListAccounts_PaginatesWithoutGapsOrRepeats`, `TestListAccounts_ExactlyOnePageHasNoCursor`, `TestListAccounts_Validation` |
+| 16.3 stable while accounts are created | `TestListAccounts_StableWhileAccountsAreCreated`, `TestListAccounts_PagingWhileAccountsAreBeingCreated`, `TestListAccounts_AccountsWithTheSameTimestampAreOrderedById` |
+| 16.4 `code_prefix` is a plain prefix | `TestListAccounts_Filters` (a `_` in the prefix is not a wildcard) |
+| 16.5 `currency`, combined with AND | `TestListAccounts_Filters` |
+| 16.6 invalid or unknown parameters | `TestListAccounts_Validation`, `TestListAccounts`, `TestAPI_ListAccounts` ("errors"), `TestAccountCursor_RejectsGarbage` |
+| 16.7 empty result | `TestListAccounts_Filters` ("no match"), `TestListAccounts` |
+| 16.8 key required; in the OpenAPI file; contract-tested | `TestAPI_ListAccounts` ("requires the API key" and the contract check on every exchange), `TestRoutesMatchTheSpecification` |
+| 16.9 served by the `(created_at DESC, id DESC)` index | `TestListAccounts_UsesTheCreatedAtIndex` |
+
 The suite also contains many supporting tests (edge cases of parsing, retry timing,
 configuration, CLI behaviour, generators) that are not listed here because they
 verify implementation details rather than a stated requirement.

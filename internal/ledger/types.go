@@ -60,6 +60,11 @@ var (
 	accountCodePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$`)
 )
 
+// ValidAccountCode reports whether s is a valid account code. The same rule
+// defines a valid code *prefix* (a prefix of 1 to 64 characters from the same
+// alphabet, starting with a letter or digit).
+func ValidAccountCode(s string) bool { return accountCodePattern.MatchString(s) }
+
 // ParseCurrency validates an asset code.
 func ParseCurrency(s string) (Currency, error) {
 	if !currencyPattern.MatchString(s) {
