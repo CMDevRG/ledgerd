@@ -1,5 +1,7 @@
 # ledgerd
 
+[![CI](https://github.com/CMDevRG/ledgerd/actions/workflows/ci.yml/badge.svg)](https://github.com/CMDevRG/ledgerd/actions/workflows/ci.yml)
+
 A small, double-entry accounting ledger with an HTTP API, built to be **correct
 first and demonstrably so**: balanced transactions, exact arithmetic, idempotent
 writes, overdraft protection under concurrency, and balances that can be
