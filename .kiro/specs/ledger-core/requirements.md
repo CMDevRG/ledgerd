@@ -213,7 +213,7 @@ Out of scope: currency conversion (FX), user interface, user/role management, mu
 
 #### Acceptance Criteria
 
-1. WHEN a user runs `docker compose up` THEN the system SHALL start PostgreSQL and the API, apply database migrations, and report healthy.
+1. WHEN a user runs `make up` (which creates a `.env` file with random secrets on first use and then runs `docker compose up --build --wait`) THEN the system SHALL start PostgreSQL and the API, apply database migrations, and report healthy. Credentials are never defaulted in the repository, so `docker compose up` on its own requires `.env` to exist.
 2. The default host ports SHALL be 8085 for the API and 15432 for PostgreSQL, configurable by environment variables, so that the stack does not collide with other local projects.
 3. The repository SHALL provide a Makefile (or equivalent) with targets for build, test, race test, lint, run, and benchmark.
 4. All container images and tool versions used SHALL be pinned.

@@ -33,7 +33,7 @@ flowchart LR
 Layering rules:
 
 - `internal/ledger` holds pure domain logic (types, validation, balance rules, reversal construction). It has **no** dependency on HTTP or SQL, so it can be unit- and property-tested without a database.
-- `internal/store` is the only package that talks to PostgreSQL. It exposes a small interface consumed by the service, so the service can also be tested with a fake.
+- `internal/store` is the only package that talks to PostgreSQL. Its operations speak the domain's language (`ledger` types), so the layers above never touch generated query code.
 - `internal/service` orchestrates use cases: it validates, opens a database transaction through the store, locks accounts, applies the pure domain rules and records the result. It depends on the concrete store and is tested against a real PostgreSQL instance (a fake store would not exercise locking, constraints or isolation, which are the point of the project).
 - `internal/api` translates HTTP ⇄ domain, owns authentication, idempotency-key extraction, error mapping, and logging.
 - `internal/reconcile` runs read-only verification queries.
@@ -262,7 +262,7 @@ Idempotency-Key: 9b2c6f1e-...
 - **Logging (R12):** `log/slog` JSON handler; middleware adds `request_id` (generated or taken from `X-Request-Id`), records method, route pattern, status, duration. Request bodies are never logged.
 - **Graceful shutdown (R12.5):** `signal.NotifyContext(SIGINT, SIGTERM)` → `http.Server.Shutdown` with a 15 s deadline → close pool.
 - **Server hardening:** read-header/read/write/idle timeouts set; `http.MaxBytesReader` for the body limit (R10.7).
-- **Config (env):** `LEDGERD_ADDR` (`:8085`), `LEDGERD_DATABASE_URL`, `LEDGERD_MIGRATE_DATABASE_URL`, `LEDGERD_API_KEY`, `LEDGERD_IDEMPOTENCY_TTL`, `LEDGERD_MAX_BODY_BYTES`, `LEDGERD_LOG_LEVEL`.
+- **Config (env):** `LEDGERD_ADDR` (`:8085`), `LEDGERD_DATABASE_URL`, `LEDGERD_MIGRATE_DATABASE_URL`, `LEDGERD_API_KEY`, `LEDGERD_IDEMPOTENCY_TTL`, `LEDGERD_MAX_BODY_BYTES`, `LEDGERD_DB_MAX_CONNS` (pool size, default 20), `LEDGERD_LOG_LEVEL`.
 - **Connection pool:** `pgxpool`, max conns defaulting to 20 (tuned and documented from benchmark results).
 
 ## 7. Technology and versions
@@ -284,7 +284,7 @@ Exact module versions are pinned in `go.mod`/`go.sum` when the module is created
 
 ## 8. Deployment (local)
 
-`docker compose up` starts three services: `postgres` (init script creates `ledgerd_owner` and `ledgerd_app`), `migrate` (runs `ledgerd migrate` as owner, exits), and `api` (starts after `migrate` completes successfully; connects as `ledgerd_app`). Host ports: API `8085`, PostgreSQL `15432` — both overridable, chosen to avoid the 80/3306/6379/8080 ports used by other local stacks. Both are bound to `127.0.0.1` only, and below the ephemeral range (49152+), where Windows/Hyper-V may reserve ports at random (a first attempt with 55432 failed on exactly that).
+`make up` (which prepares `.env` and runs `docker compose up --build --wait`) starts three services: `postgres` (init script creates `ledgerd_owner` and `ledgerd_app`), `migrate` (runs `ledgerd migrate` as owner, exits), and `api` (starts after `migrate` completes successfully; connects as `ledgerd_app`). Host ports: API `8085`, PostgreSQL `15432` — both overridable, chosen to avoid the 80/3306/6379/8080 ports used by other local stacks. Both are bound to `127.0.0.1` only, and below the ephemeral range (49152+), where Windows/Hyper-V may reserve ports at random (a first attempt with 55432 failed on exactly that).
 
 ## 9. Test strategy and traceability
 
@@ -301,8 +301,31 @@ Exact module versions are pinned in `go.mod`/`go.sum` when the module is created
 ## 10. Known limitations (to be stated in the README)
 
 - A single hot account serializes writers (D2); mitigation is sharding into sub-accounts, not implemented.
-- Amounts are whole minor units up to 38 digits; the service does not know an asset's display scale (decimals) — formatting is the client's responsibility. Arithmetic on `NUMERIC` is slower than on `BIGINT` (measured in the benchmark).
+- Amounts are whole minor units up to 38 digits; the service does not know an asset's display scale (decimals) — formatting is the client's responsibility. Arithmetic on `NUMERIC` is slower than on `BIGINT`; in the benchmark that cost is small next to the commit latency that dominates.
 - API-key authentication is minimal and not production-grade (R11.4).
 - Reconciliation is synchronous and scans the full ledger.
 - Single PostgreSQL primary; no replication/failover design.
 - Idempotency keys are global (single tenant), not scoped per client.
+
+## 11. Differences between this design and the implementation
+
+Recorded so the document stays honest. None changes a requirement.
+
+- **Service layer** is its own package (`internal/service`) tested against a real
+  database, instead of living in `internal/ledger` behind a store interface (§2).
+- **Timestamps** come from an injectable application clock guarded by each account's
+  last posting time, not from the database clock (§3, [ADR 0005](../../../docs/adr/0005-time-and-ordering.md)).
+- **Amounts** are `NUMERIC(38,0)` and JSON strings, not `BIGINT` (D4; the first draft
+  of this design used `BIGINT`).
+- **Account codes** are restricted to a safe alphabet (R1.7), and asset codes are 2–10
+  characters rather than exactly three letters, so `USDT` is valid.
+- **Idempotency replays** re-read the stored transaction instead of replaying a stored
+  JSON body (the body column holds a small reference).
+- **API extras**: `415` for non-JSON bodies, strict query parameters (unknown or repeated
+  ones are `400`), `405` answers with `Allow`, and a `not_ready` error for `/readyz`.
+- **Operations**: a `healthcheck` subcommand (distroless images have no `curl`),
+  `LEDGERD_DB_MAX_CONNS`, `make up` to prepare `.env` with random secrets, and the
+  PostgreSQL host port moved to 15432 (Windows reserved 55432 on the development machine).
+- **Contract testing** uses a test-only package, `internal/apicontract`, which also
+  compares the route list and error codes with `docs/openapi.yaml`.
+- **Not implemented**, as planned: holds, the outbox, metrics (tasks 29–31).

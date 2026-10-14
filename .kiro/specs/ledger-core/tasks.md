@@ -159,7 +159,7 @@ Conventions:
 
 ## Phase 9 — Documentation and release
 
-- [ ] 27. README and ADRs (in English)
+- [x] 27. README and ADRs (in English)
   - README: purpose, architecture diagram, quick start, API examples, design decisions and trade-offs, test strategy, benchmark results with hardware, limitations (design §10), the Spec-Driven Development workflow with links to the three spec files.
   - ADRs in `docs/adr/`: isolation level and locking, idempotency inside the transaction, `NUMERIC(38,0)` and string amounts, append-only enforcement.
   - _Requirements: R15.5, R14.3_

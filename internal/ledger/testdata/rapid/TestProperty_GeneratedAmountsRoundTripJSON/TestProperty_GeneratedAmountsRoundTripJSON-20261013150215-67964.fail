@@ -1,8 +1,0 @@
-# 2026/10/13 15:02:15.703486 [TestProperty_GeneratedAmountsRoundTripJSON] [rapid] draw a: ledger.Amount{v:(*big.Int)(0x1be78600c20)}
-# 2026/10/13 15:02:15.703534 [TestProperty_GeneratedAmountsRoundTripJSON] JSON round trip changed value: 9007199254740993 -> 9007199254740992
-# 
-v0.4.8#5827072053108532171
-0x0
-0x0
-0x6b74f03291620
-0x5

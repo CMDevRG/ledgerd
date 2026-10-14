@@ -2,7 +2,7 @@
 GO ?= go
 BIN := bin/ledgerd
 
-.PHONY: help build test test-unit test-race lint fmt run bench tidy generate check-generated env up down logs smoke image
+.PHONY: help build test test-unit test-race lint fmt run bench tidy generate check-generated check-docs env up down logs smoke image
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -83,3 +83,6 @@ smoke: ## End-to-end check against the running stack
 
 image: ## Build only the Docker image
 	docker build -t ledgerd:local .
+
+check-docs: ## Fail if docs/traceability.md names a test that does not exist
+	./scripts/check-traceability.sh

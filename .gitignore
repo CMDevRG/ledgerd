@@ -17,3 +17,8 @@
 # Benchmark artifacts (raw output stays local; curated numbers go in the README)
 /bench/results/*
 !/bench/results/.gitkeep
+
+# rapid writes the inputs of a failing property test here. They are not committed by
+# accident (a mutation experiment would leave noise behind); if one records a REAL
+# bug, add it deliberately with `git add -f` so it becomes a regression test.
+testdata/rapid/
