@@ -75,7 +75,7 @@ func TestAPI_FullLifecycle(t *testing.T) {
 	// Both accounts are protected and both would end at -1, so the one named is
 	// whichever has the lower id: either is a correct answer.
 	detail, _ := over["detail"].(string)
-	if over["code"] != "insufficient_funds" || !(strings.Contains(detail, wallet) || strings.Contains(detail, cash)) || !strings.Contains(detail, "overdrawn by 1") {
+	if over["code"] != "insufficient_funds" || (!strings.Contains(detail, wallet) && !strings.Contains(detail, cash)) || !strings.Contains(detail, "overdrawn by 1") {
 		t.Errorf("overdraft: %v", over)
 	}
 	unbalanced := `{"postings":[` +
