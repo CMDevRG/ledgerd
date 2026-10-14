@@ -153,7 +153,7 @@ Conventions:
   - Verify: results captured with hardware/software versions.
   - _Requirements: R14.1–R14.4_
 
-- [ ] 26. Continuous integration
+- [x] 26. Continuous integration
   - GitHub Actions: lint, `go test -race ./...` (with Docker for testcontainers), `sqlc generate` diff check, OpenAPI validation, `govulncheck`, build of the Docker image.
   - _Requirements: R13.7, R13.8_
 
