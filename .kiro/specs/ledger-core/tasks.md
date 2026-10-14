@@ -132,12 +132,12 @@ Conventions:
 
 ## Phase 7 — Proof of correctness under load
 
-- [ ] 22. Concurrency tests
+- [x] 22. Concurrency tests
   - 1,000 simultaneous transfers over several accounts (mix of funded and underfunded) with `-race`: no lost updates, no overdraft, no deadlock/timeouts, reconciliation clean; 50 simultaneous identical-key requests ⇒ exactly one transaction; simultaneous double reversal ⇒ exactly one success and one `409`; a hot-account scenario to document the contention ceiling.
   - Verify: tests pass repeatedly (run 20× locally to check for flakiness).
   - _Requirements: R3.3, R4, R5, R6.5, R13.4, R13.5_
 
-- [ ] 23. Precision test
+- [x] 23. Precision test
   - End-to-end test creating transactions with amounts above 2⁵³ and 2⁶³ and near 10³⁰; assert exact round trip in API responses, balances, `as_of`, history, and reconciliation.
   - _Requirements: R13.6_
 
