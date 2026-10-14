@@ -591,3 +591,55 @@ func TestReconcile(t *testing.T) {
 		t.Errorf("a clean report: %s", rec.Body)
 	}
 }
+
+// ---- health ----
+
+func TestHealthAndReadiness(t *testing.T) {
+	logs := &bytes.Buffer{}
+	build := func(ready func(context.Context) error) http.Handler {
+		return New(Options{
+			Logger: slogDiscard(logs), APIKey: config.Secret(testKey), ReadyTimeout: 50 * time.Millisecond,
+		}, Deps{Ledger: &fakeLedger{}, Ready: ready})
+	}
+
+	t.Run("a service without dependencies is ready", func(t *testing.T) {
+		h := build(nil)
+		for _, path := range []string{"/healthz", "/readyz"} {
+			rec := call(h, "GET", path, "", "Authorization", "") // no API key
+			if rec.Code != 200 {
+				t.Errorf("%s: %d", path, rec.Code)
+			}
+		}
+	})
+
+	t.Run("not ready when a dependency fails; alive regardless", func(t *testing.T) {
+		h := build(func(context.Context) error { return errors.New("dial tcp 10.0.0.5:5432: connect: connection refused") })
+		rec := call(h, "GET", "/readyz", "", "Authorization", "")
+		mustProblem(t, rec, 503, CodeNotReady)
+		if strings.Contains(rec.Body.String(), "10.0.0.5") || strings.Contains(rec.Body.String(), "refused") {
+			t.Errorf("the dependency error leaked: %s", rec.Body)
+		}
+		if !strings.Contains(logs.String(), "connection refused") {
+			t.Error("the reason must be logged")
+		}
+		if rec := call(h, "GET", "/healthz", "", "Authorization", ""); rec.Code != 200 {
+			t.Errorf("liveness must not depend on dependencies: %d", rec.Code)
+		}
+	})
+
+	t.Run("a slow dependency counts as not ready, quickly", func(t *testing.T) {
+		h := build(func(ctx context.Context) error { <-ctx.Done(); return ctx.Err() })
+		start := time.Now()
+		mustProblem(t, call(h, "GET", "/readyz", "", "Authorization", ""), 503, CodeNotReady)
+		if time.Since(start) > 2*time.Second {
+			t.Error("the readiness check was not bounded by its timeout")
+		}
+	})
+
+	t.Run("the ready body", func(t *testing.T) {
+		rec := call(build(func(context.Context) error { return nil }), "GET", "/readyz", "", "Authorization", "")
+		if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"status":"ready"`) {
+			t.Errorf("%d %s", rec.Code, rec.Body)
+		}
+	})
+}

@@ -16,6 +16,8 @@ type Options struct {
 	APIKey         config.Secret
 	MaxBodyBytes   int64
 	RequestTimeout time.Duration
+	// ReadyTimeout bounds the dependency check behind /readyz.
+	ReadyTimeout time.Duration
 }
 
 func (o Options) withDefaults() Options {
@@ -27,6 +29,9 @@ func (o Options) withDefaults() Options {
 	}
 	if o.RequestTimeout <= 0 {
 		o.RequestTimeout = 25 * time.Second
+	}
+	if o.ReadyTimeout <= 0 {
+		o.ReadyTimeout = 2 * time.Second
 	}
 	return o
 }

@@ -120,7 +120,7 @@ Conventions:
   - Verify: handler tests with a fake service plus end-to-end tests against the real database.
   - _Requirements: R1–R3, R6, R7, R8, R9, R10.5_
 
-- [ ] 20. Health, readiness, shutdown, and entrypoint
+- [x] 20. Health, readiness, shutdown, and entrypoint
   - `/healthz`, `/readyz` (pings DB), `cmd/ledgerd` with `serve` and `migrate` subcommands, graceful shutdown on SIGINT/SIGTERM with 15 s deadline.
   - Verify: readiness returns 503 when the database is down; shutdown test finishes an in-flight request.
   - _Requirements: R12.1, R12.2, R12.5, R15.1_

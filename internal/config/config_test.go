@@ -43,6 +43,9 @@ func TestLoadServe_Defaults(t *testing.T) {
 	if cfg.LogLevel != slog.LevelInfo {
 		t.Errorf("LogLevel = %v, want info", cfg.LogLevel)
 	}
+	if cfg.DBMaxConns != DefaultDBMaxConns {
+		t.Errorf("DBMaxConns = %d, want %d", cfg.DBMaxConns, DefaultDBMaxConns)
+	}
 	if cfg.APIKey.Reveal() != testAPIKey || cfg.DatabaseURL.Reveal() != testDBURL {
 		t.Error("secrets were not loaded verbatim")
 	}
@@ -54,13 +57,14 @@ func TestLoadServe_Overrides(t *testing.T) {
 	e[EnvIdempotencyTTL] = "72h"
 	e[EnvMaxBodyBytes] = "2048"
 	e[EnvLogLevel] = "DEBUG"
+	e[EnvDBMaxConns] = "50"
 
 	cfg, err := LoadServe(env(e))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if cfg.Addr != "127.0.0.1:9000" || cfg.IdempotencyTTL != 72*time.Hour ||
-		cfg.MaxBodyBytes != 2048 || cfg.LogLevel != slog.LevelDebug {
+		cfg.MaxBodyBytes != 2048 || cfg.LogLevel != slog.LevelDebug || cfg.DBMaxConns != 50 {
 		t.Errorf("overrides not applied: %+v", cfg)
 	}
 }
@@ -83,6 +87,9 @@ func TestLoadServe_Invalid(t *testing.T) {
 		{"body not integer", func(m map[string]string) { m[EnvMaxBodyBytes] = "big" }, "integer"},
 		{"body too small", func(m map[string]string) { m[EnvMaxBodyBytes] = "10" }, "between"},
 		{"body too large", func(m map[string]string) { m[EnvMaxBodyBytes] = "999999999999" }, "between"},
+		{"conns not integer", func(m map[string]string) { m[EnvDBMaxConns] = "many" }, "integer"},
+		{"conns zero", func(m map[string]string) { m[EnvDBMaxConns] = "0" }, "between"},
+		{"conns too many", func(m map[string]string) { m[EnvDBMaxConns] = "501" }, "between"},
 		{"bad log level", func(m map[string]string) { m[EnvLogLevel] = "loud" }, "one of"},
 	}
 	for _, tc := range tests {

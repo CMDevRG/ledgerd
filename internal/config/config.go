@@ -22,6 +22,7 @@ const (
 	EnvIdempotencyTTL     = "LEDGERD_IDEMPOTENCY_TTL"
 	EnvMaxBodyBytes       = "LEDGERD_MAX_BODY_BYTES"
 	EnvLogLevel           = "LEDGERD_LOG_LEVEL"
+	EnvDBMaxConns         = "LEDGERD_DB_MAX_CONNS"
 )
 
 // Defaults and limits.
@@ -33,6 +34,8 @@ const (
 	MinMaxBodyBytes       = 1 << 10        // 1 KiB
 	MaxMaxBodyBytes       = 16 << 20       // 16 MiB
 	MinAPIKeyLength       = 16
+	DefaultDBMaxConns     = 20
+	MaxDBMaxConns         = 500
 )
 
 // ServeConfig is the configuration of the `serve` command.
@@ -42,6 +45,7 @@ type ServeConfig struct {
 	APIKey         Secret
 	IdempotencyTTL time.Duration
 	MaxBodyBytes   int64
+	DBMaxConns     int32
 	LogLevel       slog.Level
 }
 
@@ -90,6 +94,12 @@ func LoadServe(getenv Getenv) (ServeConfig, error) {
 		errs = append(errs, fmt.Errorf("%s: %w", EnvMaxBodyBytes, err))
 	}
 	cfg.MaxBodyBytes = maxBody
+
+	conns, err := parseDBMaxConns(getenv(EnvDBMaxConns))
+	if err != nil {
+		errs = append(errs, fmt.Errorf("%s: %w", EnvDBMaxConns, err))
+	}
+	cfg.DBMaxConns = conns
 
 	level, err := parseLogLevel(getenv(EnvLogLevel))
 	if err != nil {
@@ -190,6 +200,21 @@ func parseMaxBody(raw string) (int64, error) {
 		return DefaultMaxBodyBytes, fmt.Errorf("must be between %d and %d", MinMaxBodyBytes, MaxMaxBodyBytes)
 	}
 	return n, nil
+}
+
+func parseDBMaxConns(raw string) (int32, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return DefaultDBMaxConns, nil
+	}
+	n, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil {
+		return DefaultDBMaxConns, errors.New("must be an integer")
+	}
+	if n < 1 || n > MaxDBMaxConns {
+		return DefaultDBMaxConns, fmt.Errorf("must be between 1 and %d", MaxDBMaxConns)
+	}
+	return int32(n), nil
 }
 
 func parseLogLevel(raw string) (slog.Level, error) {

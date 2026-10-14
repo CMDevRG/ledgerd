@@ -2,7 +2,7 @@
 GO ?= go
 BIN := bin/ledgerd
 
-.PHONY: help build test test-race lint fmt run bench tidy generate check-generated
+.PHONY: help build test test-unit test-race lint fmt run bench tidy generate check-generated
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -10,11 +10,17 @@ help: ## Show this help
 build: ## Build the binary into ./bin
 	$(GO) build -trimpath -o $(BIN) ./cmd/ledgerd
 
-test: ## Run all tests
-	$(GO) test ./...
+# The integration tests need Docker. These targets require it, so a stopped
+# Docker Desktop makes the run FAIL instead of silently skipping the database
+# tests and looking green. `make test-unit` is the explicit way to skip them.
+test: ## Run all tests (requires Docker)
+	LEDGERD_REQUIRE_DOCKER=1 $(GO) test ./...
 
-test-race: ## Run all tests with the race detector
-	$(GO) test -race -count=1 ./...
+test-unit: ## Run the tests that need no Docker
+	$(GO) test ./cmd/... ./internal/...
+
+test-race: ## Run all tests with the race detector (requires Docker)
+	LEDGERD_REQUIRE_DOCKER=1 $(GO) test -race -count=1 ./...
 
 lint: ## Run golangci-lint
 	golangci-lint run ./...

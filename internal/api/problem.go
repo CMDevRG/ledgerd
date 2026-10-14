@@ -53,6 +53,7 @@ const (
 	CodeIdempotencyKeyReuse   = "idempotency_key_reuse"
 	CodeTemporarilyUnavailble = "temporarily_unavailable"
 	CodeInternalError         = "internal_error"
+	CodeNotReady              = "not_ready"
 )
 
 var catalog = map[string]struct {
@@ -73,6 +74,7 @@ var catalog = map[string]struct {
 	CodeIdempotencyKeyReuse:   {http.StatusUnprocessableEntity, "Idempotency key reused with a different request"},
 	CodeTemporarilyUnavailble: {http.StatusServiceUnavailable, "Temporarily unavailable"},
 	CodeInternalError:         {http.StatusInternalServerError, "Internal error"},
+	CodeNotReady:              {http.StatusServiceUnavailable, "Service not ready"},
 }
 
 // newProblem builds a problem from the catalog.

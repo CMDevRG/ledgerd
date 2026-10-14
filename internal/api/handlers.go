@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -38,13 +39,18 @@ type Deps struct {
 const idempotencyKeyHeader = "Idempotency-Key"
 
 type handlers struct {
-	d Deps
+	d            Deps
+	log          *slog.Logger
+	readyTimeout time.Duration
 }
 
 // New returns the complete HTTP handler of the service.
 func New(o Options, d Deps) http.Handler {
-	h := &handlers{d: d}
+	o = o.withDefaults()
+	h := &handlers{d: d, log: o.Logger, readyTimeout: o.ReadyTimeout}
 	return build(o, func(add routeAdder) {
+		add("GET /healthz", h.healthz)
+		add("GET /readyz", h.readyz)
 		add("POST /v1/accounts", h.createAccount)
 		add("GET /v1/accounts/{id}", h.getAccount)
 		add("GET /v1/accounts/{id}/balance", h.getBalance)
@@ -313,4 +319,30 @@ func query(r *http.Request, allowed ...string) (queryParams, error) {
 		}
 	}
 	return queryParams{v: v}, nil
+}
+
+// ---- health ----
+
+// healthz says the process is up. It checks nothing else, so an orchestrator
+// restarts the service only when the process itself is stuck, never because a
+// dependency is down.
+func (h *handlers) healthz(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, r, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// readyz says the service can do its job right now: the database answers. A
+// load balancer uses it to stop routing traffic here without killing the
+// process. The reason is logged, not returned.
+func (h *handlers) readyz(w http.ResponseWriter, r *http.Request) {
+	if h.d.Ready != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), h.readyTimeout)
+		defer cancel()
+		if err := h.d.Ready(ctx); err != nil {
+			h.log.WarnContext(r.Context(), "readiness check failed",
+				slog.String("request_id", requestIDFrom(r.Context())), slog.Any("error", err))
+			writeProblem(w, r, newProblem(CodeNotReady, "a dependency of the service is not available"))
+			return
+		}
+	}
+	writeJSON(w, r, http.StatusOK, map[string]string{"status": "ready"})
 }
