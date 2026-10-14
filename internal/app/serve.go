@@ -14,12 +14,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/radadev/ledgerd/internal/api"
-	"github.com/radadev/ledgerd/internal/config"
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/reconcile"
-	"github.com/radadev/ledgerd/internal/service"
-	"github.com/radadev/ledgerd/internal/store"
+	"github.com/CMDevRG/ledgerd/internal/api"
+	"github.com/CMDevRG/ledgerd/internal/config"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/reconcile"
+	"github.com/CMDevRG/ledgerd/internal/service"
+	"github.com/CMDevRG/ledgerd/internal/store"
 )
 
 // Options tunes behaviour that is not configuration from the environment.

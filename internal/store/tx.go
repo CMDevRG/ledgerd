@@ -13,9 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/pgnum"
-	"github.com/radadev/ledgerd/internal/store/db"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/pgnum"
+	"github.com/CMDevRG/ledgerd/internal/store/db"
 )
 
 // Tx is the set of ledger operations available inside a database transaction.

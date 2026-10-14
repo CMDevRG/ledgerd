@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/radadev/ledgerd/internal/config"
+	"github.com/CMDevRG/ledgerd/internal/config"
 )
 
 // Options configures the HTTP handler.

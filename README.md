@@ -36,7 +36,7 @@ the properties that matter in financial systems.
 Requires Docker (with Compose) and `make`. Nothing else is needed to run it.
 
 ```bash
-git clone <repository-url> ledgerd && cd ledgerd
+git clone https://github.com/CMDevRG/ledgerd.git && cd ledgerd
 make up        # creates .env with random secrets, builds the image, starts everything
 make smoke     # an end-to-end check against the running stack
 ```

@@ -19,9 +19,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/radadev/ledgerd/internal/app"
-	"github.com/radadev/ledgerd/internal/config"
-	"github.com/radadev/ledgerd/internal/migrate"
+	"github.com/CMDevRG/ledgerd/internal/app"
+	"github.com/CMDevRG/ledgerd/internal/config"
+	"github.com/CMDevRG/ledgerd/internal/migrate"
 )
 
 // Exit codes.

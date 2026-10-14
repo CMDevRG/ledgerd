@@ -9,11 +9,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"pgregory.net/rapid"
 
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/pgnum"
+	"github.com/CMDevRG/ledgerd/internal/store"
+	"github.com/CMDevRG/ledgerd/internal/store/db"
 	"github.com/google/uuid"
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/pgnum"
-	"github.com/radadev/ledgerd/internal/store"
-	"github.com/radadev/ledgerd/internal/store/db"
 )
 
 var maxNumeric38 = new(big.Int).Sub(new(big.Int).Exp(big.NewInt(10), big.NewInt(38), nil), big.NewInt(1)) // 10^38 - 1

@@ -13,13 +13,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/radadev/ledgerd/internal/api"
-	"github.com/radadev/ledgerd/internal/apicontract"
-	"github.com/radadev/ledgerd/internal/config"
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/reconcile"
-	"github.com/radadev/ledgerd/internal/service"
-	"github.com/radadev/ledgerd/internal/store"
+	"github.com/CMDevRG/ledgerd/internal/api"
+	"github.com/CMDevRG/ledgerd/internal/apicontract"
+	"github.com/CMDevRG/ledgerd/internal/config"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/reconcile"
+	"github.com/CMDevRG/ledgerd/internal/service"
+	"github.com/CMDevRG/ledgerd/internal/store"
 )
 
 const apiKey = "integration-test-api-key-0123456789"

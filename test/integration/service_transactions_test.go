@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/radadev/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
 )
 
 func TestCreateTransaction_Deposit(t *testing.T) {

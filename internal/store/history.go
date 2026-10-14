@@ -11,8 +11,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/store/db"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/store/db"
 )
 
 // BalanceAsOf returns an account's balance right after its latest posting

@@ -7,8 +7,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/radadev/ledgerd/internal/migrate"
-	"github.com/radadev/ledgerd/internal/testdb"
+	"github.com/CMDevRG/ledgerd/internal/migrate"
+	"github.com/CMDevRG/ledgerd/internal/testdb"
 )
 
 func tableNames(t *testing.T, db *testdb.DB) []string {

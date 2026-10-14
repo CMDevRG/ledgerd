@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/radadev/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
 )
 
 const (

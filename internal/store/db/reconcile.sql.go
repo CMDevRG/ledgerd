@@ -8,8 +8,8 @@ package db
 import (
 	"context"
 
+	pgnum "github.com/CMDevRG/ledgerd/internal/pgnum"
 	"github.com/google/uuid"
-	pgnum "github.com/radadev/ledgerd/internal/pgnum"
 )
 
 const countAccounts = `-- name: CountAccounts :one

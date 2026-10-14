@@ -17,9 +17,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/service"
-	"github.com/radadev/ledgerd/internal/store"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/service"
+	"github.com/CMDevRG/ledgerd/internal/store"
 )
 
 // newEnvWithConns builds an environment whose connection pool has the given

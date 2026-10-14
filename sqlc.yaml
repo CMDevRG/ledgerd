@@ -24,7 +24,7 @@ sql:
           # NUMERIC(38,0) amounts and balances as exact integers.
           - db_type: "pg_catalog.numeric"
             go_type:
-              import: "github.com/radadev/ledgerd/internal/pgnum"
+              import: "github.com/CMDevRG/ledgerd/internal/pgnum"
               package: "pgnum"
               type: "Int"
           # Timestamps as time.Time (pointer when nullable).

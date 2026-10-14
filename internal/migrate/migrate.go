@@ -12,7 +12,7 @@ import (
 	// Registers the "pgx" database/sql driver.
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/radadev/ledgerd/migrations"
+	"github.com/CMDevRG/ledgerd/migrations"
 )
 
 func provider(db *sql.DB) (*goose.Provider, error) {

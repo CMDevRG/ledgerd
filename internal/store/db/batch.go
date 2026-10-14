@@ -10,9 +10,9 @@ import (
 	"errors"
 	"time"
 
+	pgnum "github.com/CMDevRG/ledgerd/internal/pgnum"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	pgnum "github.com/radadev/ledgerd/internal/pgnum"
 )
 
 var (

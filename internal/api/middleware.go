@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/radadev/ledgerd/internal/config"
+	"github.com/CMDevRG/ledgerd/internal/config"
 )
 
 const requestIDHeader = "X-Request-Id"

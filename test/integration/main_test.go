@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/radadev/ledgerd/internal/testdb"
+	"github.com/CMDevRG/ledgerd/internal/testdb"
 )
 
 var server *testdb.Server

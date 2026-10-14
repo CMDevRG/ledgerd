@@ -11,9 +11,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/reconcile"
-	"github.com/radadev/ledgerd/internal/store"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/reconcile"
+	"github.com/CMDevRG/ledgerd/internal/store"
 )
 
 func (e *env) reconcile(t *testing.T, deep bool) ledger.ReconciliationReport {

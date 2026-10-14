@@ -3,8 +3,8 @@ package store
 import (
 	"fmt"
 
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/store/db"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/store/db"
 )
 
 func postingToDomain(p db.Posting) (ledger.Posting, error) {

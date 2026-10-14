@@ -12,9 +12,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/radadev/ledgerd/internal/app"
-	"github.com/radadev/ledgerd/internal/config"
-	"github.com/radadev/ledgerd/internal/testdb"
+	"github.com/CMDevRG/ledgerd/internal/app"
+	"github.com/CMDevRG/ledgerd/internal/config"
+	"github.com/CMDevRG/ledgerd/internal/testdb"
 )
 
 // liveServer is a ledgerd process-equivalent (app.Serve) listening on a real

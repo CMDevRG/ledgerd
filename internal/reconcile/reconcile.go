@@ -7,8 +7,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/store"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/store"
 )
 
 // Options controls a reconciliation run.

@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/store"
-	"github.com/radadev/ledgerd/internal/store/db"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/store"
+	"github.com/CMDevRG/ledgerd/internal/store/db"
 )
 
 func TestCreateAndGetAccount(t *testing.T) {

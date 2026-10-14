@@ -29,7 +29,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	"github.com/radadev/ledgerd/internal/migrate"
+	"github.com/CMDevRG/ledgerd/internal/migrate"
 )
 
 const (

@@ -1,4 +1,4 @@
-module github.com/radadev/ledgerd
+module github.com/CMDevRG/ledgerd
 
 go 1.27.2
 

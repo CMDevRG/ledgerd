@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/radadev/ledgerd/internal/api"
-	"github.com/radadev/ledgerd/internal/apicontract"
+	"github.com/CMDevRG/ledgerd/internal/api"
+	"github.com/CMDevRG/ledgerd/internal/apicontract"
 )
 
 func load(t *testing.T) *apicontract.Contract {

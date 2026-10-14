@@ -167,7 +167,7 @@ Conventions:
 - [ ] 28. Final review and release (review done; waiting for three decisions from the owner, see Status)
   - Checklist: no secrets or proprietary content (R15.6), no leftover TODOs, all requirements traced to a test, license present, git author email chosen deliberately, tag `v0.1.0`.
   - Publish to GitHub after the owner runs `gh auth login`.
-  - Status: the review is complete. Done and verified: the whole tree and git history contain no employer names, credentials or `.env`; no TODOs; lint, generated code, traceability, `go mod verify`, `govulncheck` (binary) and `actionlint` are clean; the full suite passes with the race detector; a fresh clone runs `make up`, `make smoke` and a short `make bench` successfully. **Pending the owner:** (1) the GitHub user name, because the module path is currently `github.com/radadev/ledgerd`; (2) the e-mail that signs the commits (currently the one in the local git configuration); (3) `gh auth login`, then publishing and tagging `v0.1.0` on the final commit.
+  - Status: the review is complete. Done and verified: the whole tree and git history contain no employer names, credentials or `.env`; no TODOs; lint, generated code, traceability, `go mod verify`, `govulncheck` (binary) and `actionlint` are clean; the full suite passes with the race detector; a fresh clone runs `make up`, `make smoke` and a short `make bench` successfully. **Pending the owner:** (1) the GitHub user name, because the module path is currently `github.com/CMDevRG/ledgerd`; (2) the e-mail that signs the commits (currently the one in the local git configuration); (3) `gh auth login`, then publishing and tagging `v0.1.0` on the final commit.
   - _Requirements: R15.6_
 
 ## Optional follow-ups (outside the MVP)

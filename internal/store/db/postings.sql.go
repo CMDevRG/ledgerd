@@ -9,9 +9,9 @@ import (
 	"context"
 	"time"
 
+	pgnum "github.com/CMDevRG/ledgerd/internal/pgnum"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	pgnum "github.com/radadev/ledgerd/internal/pgnum"
 )
 
 const getBalanceAsOf = `-- name: GetBalanceAsOf :one

@@ -9,8 +9,8 @@ import (
 	"context"
 	"time"
 
+	pgnum "github.com/CMDevRG/ledgerd/internal/pgnum"
 	"github.com/google/uuid"
-	pgnum "github.com/radadev/ledgerd/internal/pgnum"
 )
 
 const createAccount = `-- name: CreateAccount :one

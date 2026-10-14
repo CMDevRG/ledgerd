@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/radadev/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
 )
 
 // newTestStore returns a Store that never touches a database and records the

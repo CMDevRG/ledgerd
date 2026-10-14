@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/radadev/ledgerd/internal/ledger"
-	"github.com/radadev/ledgerd/internal/store"
+	"github.com/CMDevRG/ledgerd/internal/ledger"
+	"github.com/CMDevRG/ledgerd/internal/store"
 )
 
 // MinIdempotencyRetention is the shortest time an idempotency key is kept

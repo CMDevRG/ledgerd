@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/radadev/ledgerd/internal/config"
+	"github.com/CMDevRG/ledgerd/internal/config"
 )
 
 const testKey = "test-api-key-0123456789"
