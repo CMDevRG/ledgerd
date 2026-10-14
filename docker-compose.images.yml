@@ -1,0 +1,21 @@
+# Runs the stack from the published (or locally built) release images instead of
+# building the service from source and bind-mounting the database setup:
+#
+#   LEDGERD_IMAGE=ghcr.io/cmdevrg/ledgerd:0.2.0 \
+#   LEDGERD_POSTGRES_IMAGE=ghcr.io/cmdevrg/ledgerd-postgres:0.2.0 \
+#   docker compose -f docker-compose.yml -f docker-compose.images.yml up --wait
+#
+# Pin the images by digest when you depend on them (tag@sha256:...).
+services:
+  postgres:
+    image: ${LEDGERD_POSTGRES_IMAGE:?set LEDGERD_POSTGRES_IMAGE}
+    # The role-creation script is inside the image; only the data volume is mounted.
+    volumes: !override
+      - pgdata:/var/lib/postgresql/data
+
+  migrate:
+    image: ${LEDGERD_IMAGE:?set LEDGERD_IMAGE}
+    build: !reset null
+
+  api:
+    image: ${LEDGERD_IMAGE:?set LEDGERD_IMAGE}

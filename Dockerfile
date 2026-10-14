@@ -26,6 +26,15 @@ RUN CGO_ENABLED=0 go build -trimpath \
 # CA certificates and timezone data. Runs as an unprivileged user.
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 
+ARG VERSION=dev
+ARG COMMIT=unknown
+LABEL org.opencontainers.image.title="ledgerd" \
+      org.opencontainers.image.description="A double-entry accounting ledger: exact money, idempotent writes, overdraft protection, reconciliation" \
+      org.opencontainers.image.source="https://github.com/CMDevRG/ledgerd" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}"
+
 COPY --from=build /out/ledgerd /ledgerd
 
 USER nonroot:nonroot

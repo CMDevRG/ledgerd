@@ -184,6 +184,19 @@ Criteria that are not (or not only) verified by an automated test say so.
 | 16.8 key required; in the OpenAPI file; contract-tested | `TestAPI_ListAccounts` ("requires the API key" and the contract check on every exchange), `TestRoutesMatchTheSpecification` |
 | 16.9 served by the `(created_at DESC, id DESC)` index | `TestListAccounts_UsesTheCreatedAtIndex` |
 
+## R17. Release images (version 0.2.0; requirements in `.kiro/specs/account-listing`)
+
+These are verified by running the workflow and its steps, not by Go tests.
+
+| Criterion | Verified by |
+|---|---|
+| 17.1 two images published on a version tag | `.github/workflows/release.yml`; first exercised by the release of 0.2.0 |
+| 17.2 tests and a smoke test of the images before publishing | the `checks` job (same workflow as CI) and `make smoke-images`, run by the workflow before `docker push`; also run locally during development |
+| 17.3 non-root, labelled (version, commit, source) | the Dockerfiles; checked locally with `docker image inspect` |
+| 17.4 digests in the release notes | the last step of `release.yml` |
+| 17.5 published tags are never overwritten | the "Refuse to overwrite a published version" step; only exact version tags are published (no moving `latest` or `0.2` tags) |
+| 17.6 documented | README, "Run the published images" |
+
 The suite also contains many supporting tests (edge cases of parsing, retry timing,
 configuration, CLI behaviour, generators) that are not listed here because they
 verify implementation details rather than a stated requirement.

@@ -2,7 +2,7 @@
 GO ?= go
 BIN := bin/ledgerd
 
-.PHONY: help build test test-unit test-race lint fmt run bench tidy generate check-generated check-docs env up down logs smoke image
+.PHONY: help build test test-unit test-race lint fmt run bench tidy generate check-generated check-docs env up down logs smoke image images smoke-images
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -86,3 +86,21 @@ image: ## Build only the Docker image
 
 check-docs: ## Fail if docs/traceability.md names a test that does not exist
 	./scripts/check-traceability.sh
+
+# ---- release images ----
+# IMAGE_TAG is the version for a release build (the release workflow sets it).
+IMAGE_TAG ?= dev
+LEDGERD_IMAGE ?= ghcr.io/cmdevrg/ledgerd:$(IMAGE_TAG)
+LEDGERD_POSTGRES_IMAGE ?= ghcr.io/cmdevrg/ledgerd-postgres:$(IMAGE_TAG)
+COMMIT ?= $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
+
+images: ## Build the two release images (service and PostgreSQL), tagged for IMAGE_TAG
+	docker build --build-arg VERSION=$(IMAGE_TAG) --build-arg COMMIT=$(COMMIT) -t $(LEDGERD_IMAGE) .
+	docker build -f deploy/postgres.Dockerfile --build-arg VERSION=$(IMAGE_TAG) --build-arg COMMIT=$(COMMIT) -t $(LEDGERD_POSTGRES_IMAGE) .
+
+smoke-images: images env ## Start the stack from the release images, run the smoke test, remove the stack
+	@set -e; export LEDGERD_IMAGE=$(LEDGERD_IMAGE) LEDGERD_POSTGRES_IMAGE=$(LEDGERD_POSTGRES_IMAGE); \
+	  compose="docker compose -f docker-compose.yml -f docker-compose.images.yml"; \
+	  trap '$$compose down -v' EXIT; \
+	  $$compose up --wait --detach; \
+	  ./scripts/smoke.sh

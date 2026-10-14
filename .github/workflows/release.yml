@@ -1,0 +1,104 @@
+name: Release
+
+# Pushing a version tag (v1.2.3) tests the commit, builds the two images, runs the
+# smoke test against THE IMAGES THAT WILL BE PUBLISHED, and only then pushes them
+# and creates the GitHub release.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+# Never run two releases of the same tag at once, and never cancel one half way.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Same checks as every push
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Build, smoke-test, publish
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Only this job may write: to the registry and to the release.
+    permissions:
+      contents: write
+      packages: write
+    env:
+      REGISTRY: ghcr.io
+      SERVICE_IMAGE: ghcr.io/cmdevrg/ledgerd
+      POSTGRES_IMAGE: ghcr.io/cmdevrg/ledgerd-postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Version from the tag
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to the registry
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | docker login "$REGISTRY" -u "$GITHUB_ACTOR" --password-stdin
+
+      # Published versions are immutable: refuse to release a version twice.
+      - name: Refuse to overwrite a published version
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          for image in "$SERVICE_IMAGE" "$POSTGRES_IMAGE"; do
+            if docker manifest inspect "$image:$VERSION" >/dev/null 2>&1; then
+              echo "$image:$VERSION already exists; published versions are never overwritten." >&2
+              exit 1
+            fi
+          done
+
+      # The same Makefile targets a developer uses: build both images, start the
+      # stack from them (no source build, no bind-mounted setup), run the smoke test.
+      - name: Build and smoke-test the images
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: make smoke-images IMAGE_TAG="$VERSION" COMMIT="$GITHUB_SHA"
+
+      # The bytes that passed the smoke test are the bytes that get pushed.
+      - name: Push the tested images
+        id: push
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          for image in "$SERVICE_IMAGE" "$POSTGRES_IMAGE"; do
+            docker push "$image:$VERSION"
+          done
+          {
+            echo "service=$(docker inspect --format '{{index .RepoDigests 0}}' "$SERVICE_IMAGE:$VERSION")"
+            echo "postgres=$(docker inspect --format '{{index .RepoDigests 0}}' "$POSTGRES_IMAGE:$VERSION")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.value }}
+          SERVICE_DIGEST: ${{ steps.push.outputs.service }}
+          POSTGRES_DIGEST: ${{ steps.push.outputs.postgres }}
+        run: |
+          cat > notes.md <<NOTES
+          See the [README](https://github.com/${GITHUB_REPOSITORY}#readme) for what ledgerd guarantees and how to run it.
+
+          ## Images
+
+          Pin by digest when you depend on them:
+
+          \`\`\`
+          ${SERVICE_DIGEST}
+          ${POSTGRES_DIGEST}
+          \`\`\`
+
+          Both were smoke-tested exactly as published, and every check of the CI workflow passed on this commit.
+          NOTES
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes --notes-file notes.md

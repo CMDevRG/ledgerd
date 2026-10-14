@@ -14,7 +14,7 @@
   - Operation and schemas in `docs/openapi.yaml`; route/contract tests pass; a concurrency test creates accounts while a client pages.
   - _Requirements: R16.3, R16.8_
 
-- [ ] 36. Release images
+- [x] 36. Release images
   - `deploy/postgres.Dockerfile`; compose reads image names from variables; `release.yml` as designed; README section on the published images.
   - Verify: run the workflow's steps locally up to the push (build both images, smoke test against them); `actionlint`.
   - _Requirements: R17.1–R17.6_

@@ -40,8 +40,8 @@ Unit: cursor round trip and garbage; parameter validation. Integration: ordering
 - `Dockerfile` already builds the service (`ghcr.io/cmdevrg/ledgerd`). A new `deploy/postgres.Dockerfile` is `FROM postgres:16-alpine@sha256:…` plus `COPY deploy/initdb/ /docker-entrypoint-initdb.d/`, so the role-creation script ships inside the database image (`ghcr.io/cmdevrg/ledgerd-postgres`).
 - A new workflow `.github/workflows/release.yml`, triggered by tags `v*.*.*`, with `packages: write` only in the job that pushes:
   1. run the full test suite (same as CI);
-  2. build both images (not pushed) and run the compose smoke test with `LEDGERD_IMAGE`/`LEDGERD_POSTGRES_IMAGE` pointing at them;
-  3. push with `docker/build-push-action` (provenance and SBOM attestations on), tags `<version>`, `<major>.<minor>`;
+  2. build both images locally (`make images`) and run the compose smoke test with `LEDGERD_IMAGE`/`LEDGERD_POSTGRES_IMAGE` pointing at them (`make smoke-images`);
+  3. `docker push` those same images (the bytes that passed the smoke test), exact version tags only (`<version>`): a moving tag such as `latest` or `0.2` would contradict the immutability rule. Registry-side provenance attestations are not produced, a deliberate trade for pushing exactly what was tested;
   4. create the GitHub release with the digests in the notes.
 - `docker-compose.yml` reads the two image names from variables, defaulting to a local build, so developers keep building from source while the console pulls the published, pinned images.
 - Tags are immutable by policy: the workflow fails if the tag already exists in the registry.

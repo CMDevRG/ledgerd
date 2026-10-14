@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Also called by release.yml, so a release runs exactly the same checks.
+  workflow_call:
 
 # Read-only token for every job: nothing here needs to write to the repository.
 permissions:

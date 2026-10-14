@@ -50,6 +50,28 @@ Both ports are bound to the loopback interface only and can be changed in `.env`
 `make down` stops the stack and keeps the data; `docker compose down -v` deletes it.
 Your API key is in `.env`.
 
+### Run the published images
+
+Every release publishes two images to GitHub Container Registry, tested exactly as
+published (the release workflow runs the smoke test against them before pushing):
+
+| Image | Contents |
+|---|---|
+| `ghcr.io/cmdevrg/ledgerd:<version>` | the service (`serve`, `migrate`, `healthcheck`), distroless, non-root |
+| `ghcr.io/cmdevrg/ledgerd-postgres:<version>` | PostgreSQL 16 with the two ledgerd roles created on first start |
+
+```bash
+export LEDGERD_IMAGE=ghcr.io/cmdevrg/ledgerd:0.2.0
+export LEDGERD_POSTGRES_IMAGE=ghcr.io/cmdevrg/ledgerd-postgres:0.2.0
+make env       # secrets for .env
+docker compose -f docker-compose.yml -f docker-compose.images.yml up --wait
+```
+
+Published versions are never overwritten. When you depend on an image, pin it by
+digest (`image:tag@sha256:...`); the digests are listed in each GitHub release.
+`make images` builds both locally and `make smoke-images` runs the whole stack from
+them.
+
 ### Try it
 
 ```bash
