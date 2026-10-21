@@ -14,12 +14,18 @@ Versions follow [Semantic Versioning](https://semver.org). Published versions ar
   it passes only when the real server is listening. A test (`deploy/compose_test.go`) fails if the
   check goes back to the socket.
 
+### Security
+
+- Go 1.27.3 (was 1.27.2) in `go.mod` and in the build image, for GO-2026-6809, a vulnerability in
+  `crypto/x509` that `govulncheck` reported against 1.27.2 (it is in the call path of the HTTP
+  server). The CI scan failed on it, which would have stopped this release.
+
 ### Compatibility
 
-Nothing else changed: the API, the migrations and the code are those of 0.2.0. The 0.2.1 images
-contain the same program and database setup as 0.2.0 (only their version label differs), so there
-is no need to move to them if you start ledgerd with your own compose file. Anyone who starts it
-with this repository's `docker-compose.yml` (`make up`, `make smoke-images`) gets the fix.
+The API, the migrations and the application code are those of 0.2.0. The 0.2.1 service image is
+built with the patched Go; the database image differs from 0.2.0's only in its version label. Anyone
+who starts ledgerd with this repository's `docker-compose.yml` (`make up`, `make smoke-images`) gets
+the health-check fix.
 
 ## 0.2.0
 

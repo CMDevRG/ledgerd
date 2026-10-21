@@ -346,7 +346,7 @@ Stated plainly, because they are real:
 
 ## Development
 
-Tools used (all pinned): Go 1.27.2, `sqlc` 1.31.1, `goose` 3.29.0 (as a library),
+Tools used (all pinned): Go 1.27.3, `sqlc` 1.31.1, `goose` 3.29.0 (as a library),
 `golangci-lint` 2.14.0, k6 2.3.0, PostgreSQL 16.
 
 ```bash
